@@ -1,0 +1,10 @@
+{
+  "name": "J.A.R.V.I.S. - Stark Industries AI Assistant",
+  "description": "Cinematic Iron Man-inspired J.A.R.V.I.S. voice personal assistant with animated holographic helmet, reactive arc reactor core, real AI voice intelligence, and integrated slide-out mission dashboard.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

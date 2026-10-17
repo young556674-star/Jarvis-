@@ -1,0 +1,182 @@
+{
+  "calendar": [
+    {
+      "id": "cal-1",
+      "title": "Flight Test Mark 85 Supersonic Thrusters",
+      "date": "2026-10-17",
+      "time": "14:00",
+      "duration": "45 mins",
+      "notes": "Testing high-altitude thermal dissipators above Malibu.",
+      "category": "Armor Protocol",
+      "created_at": "2026-10-17T12:42:21.610Z"
+    },
+    {
+      "id": "cal-2",
+      "title": "Stark Industries Board Review: Clean Energy Grid",
+      "date": "2026-10-18",
+      "time": "10:30",
+      "duration": "60 mins",
+      "notes": "Reviewing city-wide arc reactor distribution efficiency.",
+      "category": "Corporate",
+      "created_at": "2026-10-17T12:42:21.610Z"
+    },
+    {
+      "id": "cal-3",
+      "title": "Avengers Protocol Briefing with Col. Rhodes",
+      "date": "2026-10-19",
+      "time": "16:00",
+      "duration": "30 mins",
+      "notes": "Tactical satellite realignment status report.",
+      "category": "Defense",
+      "created_at": "2026-10-17T12:42:21.610Z"
+    },
+    {
+      "id": "cal-1792240990727",
+      "title": "Meeting",
+      "date": "2026-10-18",
+      "time": "3:00 PM",
+      "duration": "60 mins",
+      "notes": "Scheduled via J.A.R.V.I.S. voice protocol.",
+      "category": "Workshop Protocol",
+      "created_at": "2026-10-17T12:43:10.727Z"
+    },
+    {
+      "id": "cal-1792241021401",
+      "title": "Meeting",
+      "date": "2026-10-18",
+      "time": "3:00 PM",
+      "duration": "60 mins",
+      "notes": "Scheduled via J.A.R.V.I.S. voice protocol.",
+      "category": "Workshop Protocol",
+      "created_at": "2026-10-17T12:43:41.401Z"
+    },
+    {
+      "id": "cal-1792241653109",
+      "title": "Flight Test",
+      "date": "2026-10-18",
+      "time": "11:00",
+      "duration": "60 mins",
+      "notes": "Scheduled via J.A.R.V.I.S. voice protocol.",
+      "category": "Workshop Protocol",
+      "created_at": "2026-10-17T12:54:13.109Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1792240960294",
+      "title": "Finish my assignment",
+      "completed": true,
+      "priority": "medium",
+      "category": "General",
+      "dueDate": "Today",
+      "created_at": "2026-10-17T12:42:40.294Z"
+    },
+    {
+      "id": "task-1",
+      "title": "Calibrate arc reactor palladium core harmonics",
+      "completed": false,
+      "priority": "high",
+      "category": "Engineering",
+      "dueDate": "Today",
+      "created_at": "2026-10-17T12:42:21.610Z"
+    },
+    {
+      "id": "task-2",
+      "title": "Synthesize Vibranium-titanium alloy batch #42",
+      "completed": false,
+      "priority": "high",
+      "category": "Workshop",
+      "dueDate": "Tomorrow",
+      "created_at": "2026-10-17T12:42:21.610Z"
+    },
+    {
+      "id": "task-3",
+      "title": "Update JARVIS neural encryption firewall subroutines",
+      "completed": true,
+      "priority": "medium",
+      "category": "Security",
+      "dueDate": "Completed",
+      "created_at": "2026-10-17T12:42:21.610Z"
+    },
+    {
+      "id": "task-4",
+      "title": "Order composite carbon fiber weave for repulsor gauntlets",
+      "completed": false,
+      "priority": "low",
+      "category": "Logistics",
+      "dueDate": "This Week",
+      "created_at": "2026-10-17T12:42:21.610Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "proj-1",
+      "title": "Project ARCHITECT: Next-Gen Autonomous Armor",
+      "description": "Zero-latency neural link suit featuring liquid-nanite deployment.",
+      "progress": 82,
+      "status": "active",
+      "tag": "Mark LXXXV",
+      "updated_at": "2026-10-17T12:42:21.610Z"
+    },
+    {
+      "id": "proj-2",
+      "title": "STARK GRID: Global Clean Arc Energy Matrix",
+      "description": "Distributed micro-reactor architecture for carbon-zero metropolitan power.",
+      "progress": 94,
+      "status": "active",
+      "tag": "Energy",
+      "updated_at": "2026-10-17T12:42:21.610Z"
+    },
+    {
+      "id": "proj-3",
+      "title": "VERONICA ORBITAL PLATFORM: Deep Space Telemetry",
+      "description": "Atmospheric defense satellite cluster & orbital repair module.",
+      "progress": 48,
+      "status": "planning",
+      "tag": "Aerospace",
+      "updated_at": "2026-10-17T12:42:21.610Z"
+    },
+    {
+      "id": "proj-4",
+      "title": "CELLULAR NANOBOT REPAIR MATRIX",
+      "description": "Autonomous micro-machinery for rapid biological trauma recovery.",
+      "progress": 65,
+      "status": "active",
+      "tag": "Bio-Medical",
+      "updated_at": "2026-10-17T12:42:21.610Z"
+    }
+  ],
+  "reminders": [
+    {
+      "id": "rem-1",
+      "text": "Review thermal telemetry on Mark 85 boot flaps at 15:00",
+      "time": "15:00 Today",
+      "priority": "high",
+      "dismissed": false,
+      "created_at": "2026-10-17T12:42:21.610Z"
+    },
+    {
+      "id": "rem-2",
+      "text": "Dinner reservation with Pepper at 20:00 at Nobu Malibu",
+      "time": "20:00 Today",
+      "priority": "high",
+      "dismissed": false,
+      "created_at": "2026-10-17T12:42:21.610Z"
+    },
+    {
+      "id": "rem-3",
+      "text": "Renew orbital satellite telemetry downlink lease",
+      "time": "Tomorrow 09:00",
+      "priority": "normal",
+      "dismissed": false,
+      "created_at": "2026-10-17T12:42:21.610Z"
+    }
+  ],
+  "systemStats": {
+    "coreTemperature": "48.2 °C",
+    "reactorOutput": "10.84 GJ/s",
+    "suitEfficiency": "99.4%",
+    "defenseGrid": "ONLINE",
+    "neuroLinkLatency": "1.2 ms"
+  }
+}
