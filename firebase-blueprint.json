@@ -1,0 +1,322 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile document containing authentication metadata",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User profile avatar URL"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when profile was created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when profile was last updated"
+        }
+      },
+      "required": ["userId", "email", "createdAt"]
+    },
+    "CalendarEvent": {
+      "title": "CalendarEvent",
+      "description": "Scheduled event or meeting in JARVIS mission calendar",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the calendar event"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "Event title or meeting subject",
+          "maxLength": 200
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of event in YYYY-MM-DD format"
+        },
+        "time": {
+          "type": "string",
+          "description": "Time of event in HH:mm format"
+        },
+        "duration": {
+          "type": "string",
+          "description": "Estimated duration (e.g. 60 mins)"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Event briefing or notes",
+          "maxLength": 1000
+        },
+        "category": {
+          "type": "string",
+          "description": "Category tag e.g. Flight Test, Lab, Meeting",
+          "maxLength": 50
+        },
+        "color": {
+          "type": "string",
+          "description": "Hex or accent indicator"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp updated"
+        }
+      },
+      "required": ["id", "userId", "title", "date", "time", "category"]
+    },
+    "TaskItem": {
+      "title": "TaskItem",
+      "description": "To-do task or directive in JARVIS mission task list",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the task"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "Task description or directive",
+          "maxLength": 300
+        },
+        "completed": {
+          "type": "boolean",
+          "description": "Whether directive is accomplished"
+        },
+        "priority": {
+          "type": "string",
+          "description": "Priority tier: high, medium, low",
+          "enum": ["high", "medium", "low"]
+        },
+        "category": {
+          "type": "string",
+          "description": "Category classification",
+          "maxLength": 50
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "Optional deadline date"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp updated"
+        }
+      },
+      "required": ["id", "userId", "title", "completed", "priority", "category"]
+    },
+    "ProjectItem": {
+      "title": "ProjectItem",
+      "description": "Stark Industries engineering initiative or project",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the project"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "Project title or codename",
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed project description",
+          "maxLength": 1000
+        },
+        "progress": {
+          "type": "number",
+          "description": "Completion percentage 0 to 100"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status state",
+          "enum": ["active", "planning", "completed", "on-hold"]
+        },
+        "tag": {
+          "type": "string",
+          "description": "Classification tag",
+          "maxLength": 50
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp updated"
+        }
+      },
+      "required": ["id", "userId", "title", "progress", "status", "tag"]
+    },
+    "ReminderItem": {
+      "title": "ReminderItem",
+      "description": "Audio or visual alert notification set by user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for reminder"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID"
+        },
+        "text": {
+          "type": "string",
+          "description": "Reminder text or prompt",
+          "maxLength": 300
+        },
+        "time": {
+          "type": "string",
+          "description": "Time notification is scheduled for"
+        },
+        "priority": {
+          "type": "string",
+          "description": "Priority tier: normal, high",
+          "enum": ["normal", "high"]
+        },
+        "dismissed": {
+          "type": "boolean",
+          "description": "Whether notification has been dismissed"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp updated"
+        }
+      },
+      "required": ["id", "userId", "text", "time", "priority", "dismissed"]
+    },
+    "MemoryItem": {
+      "title": "MemoryItem",
+      "description": "Persistent long-term AI memory record for user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for memory record"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID"
+        },
+        "content": {
+          "type": "string",
+          "description": "Memory content statement or fact",
+          "maxLength": 2000
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of memory: project, preference, personal, general, deadline",
+          "enum": ["project", "preference", "personal", "general", "deadline"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp updated"
+        }
+      },
+      "required": ["id", "userId", "content", "category"]
+    },
+    "ConversationMessage": {
+      "title": "ConversationMessage",
+      "description": "Historical message exchange in conversation",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for message"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID"
+        },
+        "role": {
+          "type": "string",
+          "description": "Sender role: user, assistant",
+          "enum": ["user", "assistant"]
+        },
+        "content": {
+          "type": "string",
+          "description": "Message text content",
+          "maxLength": 4000
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Message timestamp"
+        }
+      },
+      "required": ["id", "userId", "role", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document containing authentication metadata"
+    },
+    "/users/{userId}/calendar/{eventId}": {
+      "schema": "CalendarEvent",
+      "description": "Calendar events for the user"
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": "TaskItem",
+      "description": "To-do tasks for the user"
+    },
+    "/users/{userId}/projects/{projectId}": {
+      "schema": "ProjectItem",
+      "description": "Work and engineering projects for the user"
+    },
+    "/users/{userId}/reminders/{reminderId}": {
+      "schema": "ReminderItem",
+      "description": "Timed reminders and alerts for the user"
+    },
+    "/users/{userId}/memories/{memoryId}": {
+      "schema": "MemoryItem",
+      "description": "Long-term AI memory items for the user"
+    },
+    "/users/{userId}/conversations/{messageId}": {
+      "schema": "ConversationMessage",
+      "description": "Historical conversation message record for the user"
+    }
+  }
+}

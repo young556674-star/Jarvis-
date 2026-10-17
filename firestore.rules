@@ -1,0 +1,154 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connection testing endpoint for app initialization
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUser(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.email is string && data.email.size() <= 128 &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1000));
+    }
+
+    function isValidCalendar(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.date is string && data.date.size() <= 20 &&
+             data.time is string && data.time.size() <= 20 &&
+             data.category is string && data.category.size() <= 50 &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000)) &&
+             (!('duration' in data) || (data.duration is string && data.duration.size() <= 50)) &&
+             (!('color' in data) || (data.color is string && data.color.size() <= 50));
+    }
+
+    function isValidTask(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 300 &&
+             data.completed is bool &&
+             data.priority is string && (data.priority in ['high', 'medium', 'low']) &&
+             data.category is string && data.category.size() <= 50 &&
+             (!('dueDate' in data) || (data.dueDate is string && data.dueDate.size() <= 50));
+    }
+
+    function isValidProject(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.progress is number && data.progress >= 0 && data.progress <= 100 &&
+             data.status is string && (data.status in ['active', 'planning', 'completed', 'on-hold']) &&
+             data.tag is string && data.tag.size() <= 50 &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 1000));
+    }
+
+    function isValidReminder(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.text is string && data.text.size() > 0 && data.text.size() <= 300 &&
+             data.time is string && data.time.size() <= 50 &&
+             data.priority is string && (data.priority in ['normal', 'high']) &&
+             data.dismissed is bool;
+    }
+
+    function isValidMemory(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 2000 &&
+             data.category is string && (data.category in ['project', 'preference', 'personal', 'general', 'deadline']);
+    }
+
+    function isValidMessage(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.role is string && (data.role in ['user', 'assistant']) &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 4000;
+    }
+
+    // User Profile Document
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming()) && incoming().userId == userId;
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUser(incoming()) && incoming().userId == userId;
+      allow delete: if isOwner(userId);
+
+      // User's Mission Calendar Events
+      match /calendar/{eventId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(eventId) && isValidCalendar(incoming()) && incoming().userId == userId;
+        allow update: if isOwner(userId) && isValidId(eventId) && isValidCalendar(incoming()) && incoming().userId == userId && incoming().id == eventId;
+        allow delete: if isOwner(userId);
+      }
+
+      // User's Mission Tasks
+      match /tasks/{taskId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(taskId) && isValidTask(incoming()) && incoming().userId == userId;
+        allow update: if isOwner(userId) && isValidId(taskId) && isValidTask(incoming()) && incoming().userId == userId && incoming().id == taskId;
+        allow delete: if isOwner(userId);
+      }
+
+      // User's Work / Projects
+      match /projects/{projectId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(projectId) && isValidProject(incoming()) && incoming().userId == userId;
+        allow update: if isOwner(userId) && isValidId(projectId) && isValidProject(incoming()) && incoming().userId == userId && incoming().id == projectId;
+        allow delete: if isOwner(userId);
+      }
+
+      // User's Reminders
+      match /reminders/{reminderId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(reminderId) && isValidReminder(incoming()) && incoming().userId == userId;
+        allow update: if isOwner(userId) && isValidId(reminderId) && isValidReminder(incoming()) && incoming().userId == userId && incoming().id == reminderId;
+        allow delete: if isOwner(userId);
+      }
+
+      // User's Long-Term Memories
+      match /memories/{memoryId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(memoryId) && isValidMemory(incoming()) && incoming().userId == userId;
+        allow update: if isOwner(userId) && isValidId(memoryId) && isValidMemory(incoming()) && incoming().userId == userId && incoming().id == memoryId;
+        allow delete: if isOwner(userId);
+      }
+
+      // User's Persistent Conversation History
+      match /conversations/{messageId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(messageId) && isValidMessage(incoming()) && incoming().userId == userId;
+        allow update: if isOwner(userId) && isValidId(messageId) && isValidMessage(incoming()) && incoming().userId == userId && incoming().id == messageId;
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

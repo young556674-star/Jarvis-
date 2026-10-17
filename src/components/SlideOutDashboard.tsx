@@ -9,21 +9,12 @@ import {
   Plus,
   Trash2,
   CheckCircle2,
-  Clock,
-  Tag,
-  AlertCircle,
-  Activity,
+  Brain,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
+import { JarvisDataStore } from '../types';
 import {
-  JarvisDataStore,
-  CalendarEvent,
-  TaskItem,
-  ProjectItem,
-  ReminderItem,
-} from '../types';
-import {
-  addCalendarEvent,
-  deleteCalendarEvent,
   addTask,
   toggleTask,
   deleteTask,
@@ -33,6 +24,18 @@ import {
   addReminder,
   deleteReminder,
 } from '../services/api';
+import { useAuth } from '../firebase/AuthContext';
+import {
+  addFirestoreTask,
+  toggleFirestoreTask,
+  deleteFirestoreTask,
+  addFirestoreProject,
+  deleteFirestoreProject,
+  addFirestoreReminder,
+  deleteFirestoreReminder,
+} from '../firebase/firestoreService';
+import { CalendarView } from './CalendarView';
+import { MemoryBanksView } from './MemoryBanksView';
 
 interface SlideOutDashboardProps {
   isOpen: boolean;
@@ -41,7 +44,7 @@ interface SlideOutDashboardProps {
   onRefreshData: () => Promise<void>;
 }
 
-type TabType = 'home' | 'calendar' | 'tasks' | 'projects' | 'reminders';
+type TabType = 'home' | 'calendar' | 'tasks' | 'projects' | 'reminders' | 'memory';
 
 export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
   isOpen,
@@ -49,15 +52,11 @@ export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
   data,
   onRefreshData,
 }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('calendar');
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   // Form States for adding items
-  const [showEventForm, setShowEventForm] = useState(false);
-  const [newEventTitle, setNewEventTitle] = useState('');
-  const [newEventDate, setNewEventDate] = useState(new Date().toISOString().split('T')[0]);
-  const [newEventTime, setNewEventTime] = useState('14:00');
-  const [newEventCategory, setNewEventCategory] = useState('Armor Protocol');
-
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<'high' | 'medium' | 'low'>('medium');
@@ -76,39 +75,27 @@ export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Calendar handlers
-  const handleCreateEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEventTitle.trim()) return;
-    setIsSubmitting(true);
-    await addCalendarEvent({
-      title: newEventTitle,
-      date: newEventDate,
-      time: newEventTime,
-      category: newEventCategory,
-    });
-    setNewEventTitle('');
-    setShowEventForm(false);
-    setIsSubmitting(false);
-    await onRefreshData();
-  };
-
-  const handleDeleteEvent = async (id: string) => {
-    await deleteCalendarEvent(id);
-    await onRefreshData();
-  };
-
   // Task handlers
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
     setIsSubmitting(true);
-    await addTask({
+
+    const taskPayload = {
+      id: `task-${Date.now()}`,
       title: newTaskTitle,
       priority: newTaskPriority,
       category: newTaskCategory,
+      completed: false,
       dueDate: 'Today',
-    });
+      created_at: new Date().toISOString(),
+    };
+
+    if (user) {
+      await addFirestoreTask(user.uid, taskPayload).catch(console.error);
+    }
+    await addTask(taskPayload).catch(() => {});
+
     setNewTaskTitle('');
     setShowTaskForm(false);
     setIsSubmitting(false);
@@ -116,12 +103,19 @@ export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
   };
 
   const handleToggleTask = async (id: string) => {
-    await toggleTask(id);
+    const task = data.tasks.find((t) => t.id === id);
+    if (user && task) {
+      await toggleFirestoreTask(user.uid, id, task.completed).catch(console.error);
+    }
+    await toggleTask(id).catch(() => {});
     await onRefreshData();
   };
 
   const handleDeleteTask = async (id: string) => {
-    await deleteTask(id);
+    if (user) {
+      await deleteFirestoreTask(user.uid, id).catch(console.error);
+    }
+    await deleteTask(id).catch(() => {});
     await onRefreshData();
   };
 
@@ -130,13 +124,22 @@ export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
     e.preventDefault();
     if (!newProjectTitle.trim()) return;
     setIsSubmitting(true);
-    await addProject({
+
+    const projPayload = {
+      id: `proj-${Date.now()}`,
       title: newProjectTitle,
       description: newProjectDesc,
       progress: newProjectProgress,
       tag: newProjectTag,
-      status: 'active',
-    });
+      status: 'active' as const,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (user) {
+      await addFirestoreProject(user.uid, projPayload).catch(console.error);
+    }
+    await addProject(projPayload).catch(() => {});
+
     setNewProjectTitle('');
     setNewProjectDesc('');
     setShowProjectForm(false);
@@ -145,12 +148,15 @@ export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
   };
 
   const handleProgressChange = async (id: string, progress: number) => {
-    await updateProjectProgress(id, progress);
+    await updateProjectProgress(id, progress).catch(() => {});
     await onRefreshData();
   };
 
   const handleDeleteProject = async (id: string) => {
-    await deleteProject(id);
+    if (user) {
+      await deleteFirestoreProject(user.uid, id).catch(console.error);
+    }
+    await deleteProject(id).catch(() => {});
     await onRefreshData();
   };
 
@@ -159,11 +165,21 @@ export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
     e.preventDefault();
     if (!newReminderText.trim()) return;
     setIsSubmitting(true);
-    await addReminder({
+
+    const remPayload = {
+      id: `rem-${Date.now()}`,
       text: newReminderText,
       time: newReminderTime,
       priority: newReminderPriority,
-    });
+      dismissed: false,
+      created_at: new Date().toISOString(),
+    };
+
+    if (user) {
+      await addFirestoreReminder(user.uid, remPayload).catch(console.error);
+    }
+    await addReminder(remPayload).catch(() => {});
+
     setNewReminderText('');
     setShowReminderForm(false);
     setIsSubmitting(false);
@@ -171,56 +187,69 @@ export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
   };
 
   const handleDeleteReminder = async (id: string) => {
-    await deleteReminder(id);
+    if (user) {
+      await deleteFirestoreReminder(user.uid, id).catch(console.error);
+    }
+    await deleteReminder(id).catch(() => {});
     await onRefreshData();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
       {/* Click outside backdrop to close */}
       <div className="flex-1" onClick={onClose} />
 
       {/* DASHBOARD DRAWER PANEL */}
-      <aside className="w-full max-w-xl h-full bg-[#020814]/95 border-l border-cyan-500/40 shadow-[-10px_0_35px_rgba(0,240,255,0.2)] flex flex-col overflow-hidden relative font-['Rajdhani',sans-serif]">
+      <aside
+        className={`h-full bg-[#020814]/98 border-l border-cyan-500/40 shadow-[-15px_0_45px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden relative font-['Rajdhani',sans-serif] transition-all duration-300 ${
+          isExpanded || activeTab === 'calendar' ? 'w-full lg:w-[94vw]' : 'w-full max-w-2xl'
+        }`}
+      >
         {/* Subtle holographic grid lines */}
         <div className="absolute inset-0 hud-grid-bg opacity-20 pointer-events-none" />
 
         {/* DRAWER HEADER */}
-        <div className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-cyan-500/30 bg-[#031024]/80">
+        <div className="relative z-10 flex items-center justify-between px-6 py-3.5 border-b border-cyan-500/30 bg-[#031024]/90 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-2.5 h-2.5 bg-cyan-400 rounded-full animate-ping" />
             <div>
-              <h2 className="font-['Orbitron',sans-serif] text-base font-bold tracking-wider text-cyan-200">
-                J.A.R.V.I.S. MISSION CONTROL
+              <h2 className="font-['Orbitron',sans-serif] text-sm sm:text-base font-bold tracking-wider text-cyan-200">
+                J.A.R.V.I.S. MISSION DASHBOARD
               </h2>
-              <span className="text-[11px] font-mono text-cyan-400/60 uppercase tracking-widest">
-                STARK PROTOCOL LEVEL 5 CLEARANCE
+              <span className="text-[10px] font-mono text-cyan-400/60 uppercase tracking-widest">
+                STARK PROTOCOLS & CORE MEMORY BANKS
               </span>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-sm border border-cyan-500/30 hover:border-cyan-400 text-cyan-400 hover:text-cyan-200 transition-colors cursor-pointer"
-            title="Close Dashboard"
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-1.5 rounded-sm border border-cyan-500/30 hover:border-cyan-400 text-cyan-400 hover:text-cyan-200 transition-colors cursor-pointer hidden sm:block"
+              title={isExpanded ? 'Collapse' : 'Expand Fullscreen'}
+            >
+              {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-sm border border-cyan-500/30 hover:border-cyan-400 text-cyan-400 hover:text-cyan-200 transition-colors cursor-pointer"
+              title="Close Dashboard"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* 5 MANDATORY NAVIGATION TABS: Home, Calendar, To-do List, Work/Projects, Reminders */}
-        <nav className="relative z-10 flex items-center border-b border-cyan-500/30 bg-[#020c1c]/90 px-2 py-1.5 overflow-x-auto gap-1">
+        {/* NAVIGATION TABS: Home, Calendar, To-do List, Work/Projects, Reminders, Memory */}
+        <nav className="relative z-10 flex items-center border-b border-cyan-500/30 bg-[#020c1c]/90 px-3 py-1.5 overflow-x-auto gap-1.5 shrink-0">
           <button
             onClick={() => {
               setActiveTab('home');
               onClose();
             }}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xs text-xs font-mono tracking-wider transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'home'
-                ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/60 shadow-[0_0_10px_rgba(0,240,255,0.3)]'
-                : 'text-cyan-400/70 hover:text-cyan-200 hover:bg-cyan-950/40'
-            }`}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xs text-xs font-mono tracking-wider transition-all cursor-pointer whitespace-nowrap text-cyan-400/70 hover:text-cyan-200 hover:bg-cyan-950/40"
           >
             <Home className="w-3.5 h-3.5" />
             <span>HOME</span>
@@ -230,7 +259,7 @@ export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
             onClick={() => setActiveTab('calendar')}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xs text-xs font-mono tracking-wider transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'calendar'
-                ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/60 shadow-[0_0_10px_rgba(0,240,255,0.3)]'
+                ? 'bg-purple-600 text-white font-bold shadow-[0_0_12px_rgba(168,85,247,0.7)]'
                 : 'text-cyan-400/70 hover:text-cyan-200 hover:bg-cyan-950/40'
             }`}
           >
@@ -273,136 +302,55 @@ export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
             <Bell className="w-3.5 h-3.5" />
             <span>REMINDERS ({data.reminders.length})</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('memory')}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xs text-xs font-mono tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'memory'
+                ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/60 shadow-[0_0_10px_rgba(0,240,255,0.3)]'
+                : 'text-cyan-400/70 hover:text-cyan-200 hover:bg-cyan-950/40'
+            }`}
+          >
+            <Brain className="w-3.5 h-3.5 text-cyan-400" />
+            <span>MEMORY BANKS ({(data.memories || []).length})</span>
+          </button>
         </nav>
 
-        {/* TAB CONTENTS (Scrollable) */}
-        <div className="relative z-10 flex-1 overflow-y-auto p-6 space-y-6">
+        {/* TAB CONTENTS (Scrollable or Full View) */}
+        <div className="relative z-10 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {/* ========================================================= */}
-          {/* 1. CALENDAR TAB */}
+          {/* 1. CALENDAR TAB (Full Rich Time-Grid Schedule) */}
           {/* ========================================================= */}
           {activeTab === 'calendar' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-cyan-200 tracking-wide">Tactical Schedule & Events</h3>
-                  <p className="text-xs text-cyan-400/60 font-mono">Synchronized with J.A.R.V.I.S. voice executive</p>
-                </div>
-                <button
-                  onClick={() => setShowEventForm(!showEventForm)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/50 text-cyan-200 text-xs font-mono rounded-xs transition-colors cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>{showEventForm ? 'CANCEL' : 'ADD EVENT'}</span>
-                </button>
-              </div>
-
-              {/* Add Event Form */}
-              {showEventForm && (
-                <form
-                  onSubmit={handleCreateEvent}
-                  className="p-4 bg-cyan-950/30 border border-cyan-500/40 rounded-sm space-y-3"
-                >
-                  <div>
-                    <label className="text-[11px] font-mono text-cyan-400/80 block mb-1">EVENT TITLE</label>
-                    <input
-                      type="text"
-                      required
-                      value={newEventTitle}
-                      onChange={(e) => setNewEventTitle(e.target.value)}
-                      placeholder="e.g. Flight Test Mark 85 Supersonic Thrusters"
-                      className="w-full bg-[#010c1c] border border-cyan-500/30 text-cyan-200 text-sm px-3 py-1.5 rounded-xs focus:outline-hidden focus:border-cyan-400"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[11px] font-mono text-cyan-400/80 block mb-1">DATE</label>
-                      <input
-                        type="date"
-                        value={newEventDate}
-                        onChange={(e) => setNewEventDate(e.target.value)}
-                        className="w-full bg-[#010c1c] border border-cyan-500/30 text-cyan-200 text-sm px-3 py-1.5 rounded-xs focus:outline-hidden focus:border-cyan-400 font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-mono text-cyan-400/80 block mb-1">TIME</label>
-                      <input
-                        type="time"
-                        value={newEventTime}
-                        onChange={(e) => setNewEventTime(e.target.value)}
-                        className="w-full bg-[#010c1c] border border-cyan-500/30 text-cyan-200 text-sm px-3 py-1.5 rounded-xs focus:outline-hidden focus:border-cyan-400 font-mono"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-mono text-cyan-400/80 block mb-1">CATEGORY</label>
-                    <select
-                      value={newEventCategory}
-                      onChange={(e) => setNewEventCategory(e.target.value)}
-                      className="w-full bg-[#010c1c] border border-cyan-500/30 text-cyan-200 text-sm px-3 py-1.5 rounded-xs focus:outline-hidden focus:border-cyan-400"
-                    >
-                      <option value="Armor Protocol">Armor Protocol</option>
-                      <option value="Corporate">Corporate / Stark Board</option>
-                      <option value="Defense">Avengers / Defense</option>
-                      <option value="Workshop">Workshop & Engineering</option>
-                      <option value="Personal">Personal</option>
-                    </select>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-mono font-bold text-xs tracking-wider rounded-xs transition-colors cursor-pointer"
-                  >
-                    CONFIRM & SCHEDULE
-                  </button>
-                </form>
-              )}
-
-              {/* Event Cards */}
-              <div className="space-y-3">
-                {data.calendar.length === 0 ? (
-                  <div className="text-center py-8 text-cyan-500/50 font-mono text-sm">
-                    NO SCHEDULED PROTOCOLS IN QUEUE.
-                  </div>
-                ) : (
-                  data.calendar.map((ev) => (
-                    <div
-                      key={ev.id}
-                      className="p-3.5 bg-[#020e20] border border-cyan-500/30 hover:border-cyan-400/60 rounded-xs flex items-start justify-between gap-3 transition-colors group"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[10px] font-mono px-2 py-0.5 bg-cyan-950 border border-cyan-400/30 text-cyan-300 rounded-xs">
-                            {ev.category}
-                          </span>
-                          <span className="text-xs font-mono text-cyan-400/70 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> {ev.date} @ {ev.time} ({ev.duration || '60 mins'})
-                          </span>
-                        </div>
-                        <h4 className="text-sm font-bold text-cyan-100">{ev.title}</h4>
-                        {ev.notes && <p className="text-xs text-cyan-400/70 mt-1">{ev.notes}</p>}
-                      </div>
-                      <button
-                        onClick={() => handleDeleteEvent(ev.id)}
-                        className="text-cyan-500/50 hover:text-red-400 transition-colors p-1 cursor-pointer"
-                        title="Cancel Event"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
+            <div className="h-[calc(100vh-140px)] w-full">
+              <CalendarView
+                events={data.calendar}
+                tasks={data.tasks}
+                onRefresh={onRefreshData}
+              />
             </div>
           )}
 
           {/* ========================================================= */}
-          {/* 2. TO-DO LIST TAB */}
+          {/* 2. MEMORY BANKS TAB */}
+          {/* ========================================================= */}
+          {activeTab === 'memory' && (
+            <MemoryBanksView
+              memories={data.memories || []}
+              onRefresh={onRefreshData}
+            />
+          )}
+
+          {/* ========================================================= */}
+          {/* 3. TO-DO LIST TAB */}
           {/* ========================================================= */}
           {activeTab === 'tasks' && (
-            <div className="space-y-4">
+            <div className="space-y-4 max-w-3xl mx-auto">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-cyan-200 tracking-wide">Directives & To-Do List</h3>
+                  <h3 className="text-lg font-bold text-cyan-200 tracking-wide font-mono">
+                    Directives & Tasks
+                  </h3>
                   <p className="text-xs text-cyan-400/60 font-mono">Manage workshop directives and protocols</p>
                 </div>
                 <button
@@ -467,85 +415,79 @@ export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
 
               {/* Task Items */}
               <div className="space-y-2.5">
-                {data.tasks.length === 0 ? (
-                  <div className="text-center py-8 text-cyan-500/50 font-mono text-sm">
-                    ALL WORKSHOP DIRECTIVES COMPLETE.
-                  </div>
-                ) : (
-                  data.tasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className={`p-3 bg-[#020e20] border rounded-xs flex items-center justify-between gap-3 transition-all ${
-                        task.completed
-                          ? 'border-cyan-500/20 bg-[#010814]/70 opacity-60'
-                          : task.priority === 'high'
-                          ? 'border-red-500/40 bg-red-950/10'
-                          : 'border-cyan-500/30 hover:border-cyan-400/60'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 flex-1">
-                        <button
-                          onClick={() => handleToggleTask(task.id)}
-                          className="cursor-pointer text-cyan-400 hover:text-cyan-200 transition-colors"
-                          title={task.completed ? 'Mark pending' : 'Mark completed'}
+                {data.tasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className={`p-3 bg-[#020e20] border rounded-xs flex items-center justify-between gap-3 transition-all ${
+                      task.completed
+                        ? 'border-cyan-500/20 bg-[#010814]/70 opacity-60'
+                        : task.priority === 'high'
+                        ? 'border-red-500/40 bg-red-950/10'
+                        : 'border-cyan-500/30 hover:border-cyan-400/60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <button
+                        onClick={() => handleToggleTask(task.id)}
+                        className="cursor-pointer text-cyan-400 hover:text-cyan-200 transition-colors"
+                        title={task.completed ? 'Mark pending' : 'Mark completed'}
+                      >
+                        {task.completed ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                        ) : (
+                          <div className="w-5 h-5 border-2 border-cyan-500/60 hover:border-cyan-400 rounded-xs" />
+                        )}
+                      </button>
+                      <div className="flex-1">
+                        <span
+                          className={`text-sm ${
+                            task.completed ? 'line-through text-cyan-500/50' : 'text-cyan-100 font-semibold'
+                          }`}
                         >
-                          {task.completed ? (
-                            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                          ) : (
-                            <div className="w-5 h-5 border-2 border-cyan-500/60 hover:border-cyan-400 rounded-xs" />
-                          )}
-                        </button>
-                        <div className="flex-1">
+                          {task.title}
+                        </span>
+                        <div className="flex items-center gap-2 mt-0.5">
                           <span
-                            className={`text-sm ${
-                              task.completed
-                                ? 'line-through text-cyan-500/50'
-                                : 'text-cyan-100 font-semibold'
+                            className={`text-[9px] font-mono px-1.5 py-0.2 rounded-xs uppercase ${
+                              task.priority === 'high'
+                                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                : task.priority === 'medium'
+                                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                                : 'bg-slate-800 text-slate-400'
                             }`}
                           >
-                            {task.title}
+                            {task.priority}
                           </span>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span
-                              className={`text-[9px] font-mono px-1.5 py-0.2 rounded-xs uppercase ${
-                                task.priority === 'high'
-                                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                  : task.priority === 'medium'
-                                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                                  : 'bg-slate-800 text-slate-400'
-                              }`}
-                            >
-                              {task.priority}
-                            </span>
-                            <span className="text-[10px] font-mono text-cyan-400/60">{task.category}</span>
-                            {task.dueDate && (
-                              <span className="text-[10px] font-mono text-cyan-400/50">Due: {task.dueDate}</span>
-                            )}
-                          </div>
+                          <span className="text-[10px] font-mono text-cyan-400/60">{task.category}</span>
+                          {task.dueDate && (
+                            <span className="text-[10px] font-mono text-cyan-400/50">Due: {task.dueDate}</span>
+                          )}
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteTask(task.id)}
-                        className="text-cyan-500/40 hover:text-red-400 transition-colors p-1 cursor-pointer"
-                        title="Delete Directive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </div>
-                  ))
-                )}
+                    <button
+                      onClick={() => handleDeleteTask(task.id)}
+                      className="text-cyan-500/40 hover:text-red-400 transition-colors p-1 cursor-pointer"
+                      title="Delete Directive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
           {/* ========================================================= */}
-          {/* 3. WORK / PROJECTS TAB */}
+          {/* 4. WORK / PROJECTS TAB */}
           {/* ========================================================= */}
           {activeTab === 'projects' && (
-            <div className="space-y-4">
+            <div className="space-y-4 max-w-3xl mx-auto">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-cyan-200 tracking-wide">Stark Industries Initiatives</h3>
+                  <h3 className="text-lg font-bold text-cyan-200 tracking-wide font-mono">
+                    Stark Industries Initiatives
+                  </h3>
                   <p className="text-xs text-cyan-400/60 font-mono">Advanced armor architectures and energy grids</p>
                 </div>
                 <button
@@ -648,7 +590,6 @@ export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
                       </button>
                     </div>
 
-                    {/* Progress Metric Bar */}
                     <div>
                       <div className="flex justify-between text-xs font-mono mb-1">
                         <span className="text-cyan-400/80">COMPLETION STATUS</span>
@@ -679,13 +620,15 @@ export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
           )}
 
           {/* ========================================================= */}
-          {/* 4. REMINDERS TAB */}
+          {/* 5. REMINDERS TAB */}
           {/* ========================================================= */}
           {activeTab === 'reminders' && (
-            <div className="space-y-4">
+            <div className="space-y-4 max-w-3xl mx-auto">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-cyan-200 tracking-wide">Active Neural Alerts</h3>
+                  <h3 className="text-lg font-bold text-cyan-200 tracking-wide font-mono">
+                    Active Neural Alerts
+                  </h3>
                   <p className="text-xs text-cyan-400/60 font-mono">Real-time alerts broadcast via J.A.R.V.I.S.</p>
                 </div>
                 <button
@@ -749,53 +692,40 @@ export const SlideOutDashboard: React.FC<SlideOutDashboardProps> = ({
 
               {/* Reminders List */}
               <div className="space-y-3">
-                {data.reminders.length === 0 ? (
-                  <div className="text-center py-8 text-cyan-500/50 font-mono text-sm">
-                    NO ACTIVE ALERTS ARMED.
-                  </div>
-                ) : (
-                  data.reminders.map((rem) => (
-                    <div
-                      key={rem.id}
-                      className={`p-3.5 bg-[#020e20] border rounded-xs flex items-center justify-between gap-3 transition-colors ${
-                        rem.priority === 'high'
-                          ? 'border-red-500/40 bg-red-950/15'
-                          : 'border-cyan-500/30 hover:border-cyan-400/60'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3 flex-1">
-                        <AlertCircle
-                          className={`w-4 h-4 mt-0.5 ${
-                            rem.priority === 'high' ? 'text-red-400 animate-pulse' : 'text-cyan-400'
-                          }`}
-                        />
-                        <div>
-                          <div className="text-sm font-semibold text-cyan-100">{rem.text}</div>
-                          <div className="text-xs font-mono text-cyan-400/60 mt-0.5">
-                            Trigger: {rem.time}
-                          </div>
-                        </div>
+                {data.reminders.map((rem) => (
+                  <div
+                    key={rem.id}
+                    className={`p-3.5 bg-[#020e20] border rounded-xs flex items-center justify-between gap-3 transition-colors ${
+                      rem.priority === 'high'
+                        ? 'border-red-500/40 bg-red-950/15'
+                        : 'border-cyan-500/30 hover:border-cyan-400/60'
+                    }`}
+                  >
+                    <div>
+                      <div className="text-sm font-semibold text-cyan-100">{rem.text}</div>
+                      <div className="text-xs font-mono text-cyan-400/60 mt-0.5">
+                        Trigger: {rem.time}
                       </div>
-                      <button
-                        onClick={() => handleDeleteReminder(rem.id)}
-                        className="text-cyan-500/40 hover:text-emerald-400 transition-colors p-1 cursor-pointer font-mono text-xs flex items-center gap-1"
-                        title="Dismiss Alert"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>DISMISS</span>
-                      </button>
                     </div>
-                  ))
-                )}
+                    <button
+                      onClick={() => handleDeleteReminder(rem.id)}
+                      className="text-cyan-500/40 hover:text-emerald-400 transition-colors p-1 cursor-pointer font-mono text-xs flex items-center gap-1"
+                      title="Dismiss Alert"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>DISMISS</span>
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}
         </div>
 
         {/* DRAWER FOOTER */}
-        <div className="relative z-10 px-6 py-3 border-t border-cyan-500/30 bg-[#020814]/90 flex items-center justify-between text-xs font-mono text-cyan-400/60">
-          <span>ARC REACTOR TELEMETRY: NOMINAL</span>
-          <span className="text-cyan-300">STARK INDUSTRIES OS</span>
+        <div className="relative z-10 px-6 py-2.5 border-t border-cyan-500/30 bg-[#020814]/90 flex items-center justify-between text-xs font-mono text-cyan-400/60 shrink-0">
+          <span>STARK INDUSTRIES OS // PERSISTENT MEMORY SYNCED</span>
+          <span className="text-cyan-300">J.A.R.V.I.S. PROTOCOL</span>
         </div>
       </aside>
     </div>

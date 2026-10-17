@@ -2,11 +2,14 @@ export interface CalendarEvent {
   id: string;
   title: string;
   date: string;
-  time: string;
-  duration?: string;
+  time: string; // HH:mm format e.g. "09:00"
+  duration?: string; // e.g. "60 mins"
   notes?: string;
   category: string;
+  color?: string; // hex or tailwind accent e.g. "#38bdf8", "#eab308", "#ec4899", "#8b5cf6"
   created_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TaskItem {
@@ -17,6 +20,8 @@ export interface TaskItem {
   category: string;
   dueDate?: string;
   created_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ProjectItem {
@@ -27,6 +32,8 @@ export interface ProjectItem {
   status: 'active' | 'planning' | 'completed' | 'on-hold';
   tag: string;
   updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ReminderItem {
@@ -36,6 +43,18 @@ export interface ReminderItem {
   priority: 'normal' | 'high';
   dismissed: boolean;
   created_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MemoryItem {
+  id: string;
+  content: string;
+  category: 'project' | 'preference' | 'personal' | 'general' | 'deadline';
+  created_at?: string;
+  createdAt?: string;
+  updated_at?: string;
+  updatedAt?: string;
 }
 
 export interface SystemStats {
@@ -51,7 +70,8 @@ export interface JarvisDataStore {
   tasks: TaskItem[];
   projects: ProjectItem[];
   reminders: ReminderItem[];
+  memories: MemoryItem[];
   systemStats: SystemStats;
 }
 
-export type JarvisState = 'idle' | 'listening' | 'processing' | 'speaking' | 'error';
+export type JarvisState = 'sleeping' | 'waking' | 'listening' | 'processing' | 'speaking' | 'idle' | 'error';

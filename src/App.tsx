@@ -4,23 +4,26 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { TopNav } from './components/TopNav';
-import { BiometricsCard } from './components/BiometricsCard';
-import { ResourcesCard } from './components/ResourcesCard';
-import { NetworkCard } from './components/NetworkCard';
-import { ArmorStatusCard } from './components/ArmorStatusCard';
-import { SystemLogsCard, LogEntry } from './components/SystemLogsCard';
-import { TerminalCard } from './components/TerminalCard';
-import { CenterDisplay } from './components/CenterDisplay';
+import { IronManHologram } from './components/IronManHologram';
 import { SlideOutDashboard } from './components/SlideOutDashboard';
 import { JarvisState, JarvisDataStore } from './types';
 import { fetchJarvisData, sendJarvisCommand, requestJarvisTts } from './services/api';
+import { useAuth } from './firebase/AuthContext';
+import {
+  subscribeToUserData,
+  addFirestoreCalendarEvent,
+  addFirestoreTask,
+  addFirestoreReminder,
+  addFirestoreMemory,
+} from './firebase/firestoreService';
+import { playStarkStartupSound, playStarkPowerDownSound } from './services/soundEffects';
 
 const initialStore: JarvisDataStore = {
   calendar: [],
   tasks: [],
   projects: [],
   reminders: [],
+  memories: [],
   systemStats: {
     coreTemperature: '48.2 °C',
     reactorOutput: '10.84 GJ/s',
@@ -30,31 +33,30 @@ const initialStore: JarvisDataStore = {
   },
 };
 
-const initialLogs: LogEntry[] = [
-  { time: '12:45:01', text: 'SYSTEM INTEGRITY CHECK COMPLETE', level: 'info' },
-  { time: '12:45:12', text: 'BIO-SYNC STABLE AT 98.4%', level: 'success' },
-  { time: '12:45:22', text: 'ARC REACTOR OUTPUT OPTIMAL', level: 'info' },
-  { time: '12:45:34', text: 'SAT-LINK ESTABLISHED (STARK-7)', level: 'info' },
-  { time: '12:45:45', text: 'AWAITING USER INPUT...', level: 'info' },
-  { time: '12:46:02', text: 'NEURAL MAPPING RECALIBRATED', level: 'info' },
-  { time: '12:46:15', text: 'DEFENSE PERIMETER ACTIVE', level: 'success' },
-];
-
 export default function App() {
-  const [jarvisState, setJarvisState] = useState<JarvisState>('idle');
+  const { user, loading: authLoading, signInWithGoogle, signOutUser } = useAuth();
+
+  // Persistent initial mode: 'active' or 'sleeping'
+  const [jarvisState, setJarvisState] = useState<JarvisState>(() => {
+    const saved = localStorage.getItem('jarvis_mode');
+    return saved === 'sleeping' ? 'sleeping' : 'idle';
+  });
+
+  const [wakingStage, setWakingStage] = useState<number>(0);
+  const [wakeWordEnabled, setWakeWordEnabled] = useState<boolean>(true);
+  const [speechSupported, setSpeechSupported] = useState<boolean>(true);
+  const [micPermissionDenied, setMicPermissionDenied] = useState<boolean>(false);
   const [amplitude, setAmplitude] = useState<number>(0);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState<boolean>(false);
   const [dataStore, setDataStore] = useState<JarvisDataStore>(initialStore);
   const [lastTranscript, setLastTranscript] = useState<string>('');
   const [jarvisSpeech, setJarvisSpeech] = useState<string>('');
-  const [systemLogs, setSystemLogs] = useState<LogEntry[]>(initialLogs);
-  const [terminalHistory, setTerminalHistory] = useState<Array<{ command: string; output: string }>>([
-    {
-      command: 'jarvis --analyze --current-environment',
-      output: 'Analyzing... All sectors nominal. 0 hostiles detected in immediate perimeter.',
-    },
-  ]);
+  const [textInput, setTextInput] = useState<string>('');
+  const [timeStr, setTimeStr] = useState<string>('');
+  const [showUserMenu, setShowUserMenu] = useState<boolean>(false);
+  const [showEdgeRipple, setShowEdgeRipple] = useState<boolean>(false);
+  const [isListening, setIsListening] = useState<boolean>(false);
 
   // Audio & Speech references
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -63,18 +65,41 @@ export default function App() {
   const micStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const synthTimerRef = useRef<any>(null);
-  const recognitionRef = useRef<any>(null);
-  const isListeningRef = useRef<boolean>(false);
 
-  // Helper to add system log
-  const addLog = useCallback((text: string, level: 'info' | 'warn' | 'success' = 'info') => {
-    const time = new Date().toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-    setSystemLogs((prev) => [...prev.slice(-25), { time, text, level }]);
+  // Recognition references
+  const recognitionRef = useRef<any>(null);
+  const wakeRecognizerRef = useRef<any>(null);
+  const isListeningRef = useRef<boolean>(false);
+  const isWakingRef = useRef<boolean>(false);
+  const wakeTimeoutRef = useRef<any>(null);
+
+  // Keep state ref in sync for event handlers
+  const stateRef = useRef<JarvisState>(jarvisState);
+  useEffect(() => {
+    stateRef.current = jarvisState;
+    if (jarvisState === 'sleeping') {
+      localStorage.setItem('jarvis_mode', 'sleeping');
+    } else if (jarvisState !== 'waking') {
+      localStorage.setItem('jarvis_mode', 'active');
+    }
+  }, [jarvisState]);
+
+  // Digital Clock
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setTimeStr(
+        now.toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        })
+      );
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Initial Data Load
@@ -82,72 +107,42 @@ export default function App() {
     try {
       const data = await fetchJarvisData();
       setDataStore(data);
-    } catch (err) {
-      console.warn('Notice: offline data fallback:', err);
+    } catch {
+      // offline fallback
     }
   }, []);
 
+  // Real-Time Firebase Firestore Synchronization
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Setup Web Speech Recognition
-  useEffect(() => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (SpeechRecognition) {
-      const recognizer = new SpeechRecognition();
-      recognizer.continuous = false;
-      recognizer.interimResults = true;
-      recognizer.lang = 'en-US';
-
-      recognizer.onstart = () => {
-        isListeningRef.current = true;
-        setJarvisState('listening');
-        addLog('VOCAL FREQUENCY ACQUIRED - LISTENING', 'info');
-        startMicAudioAnalysis();
-      };
-
-      recognizer.onresult = (event: any) => {
-        const current = event.resultIndex;
-        const transcript = event.results[current][0].transcript;
-        if (event.results[current].isFinal) {
-          stopMicAudioAnalysis();
-          isListeningRef.current = false;
-          handleExecuteCommand(transcript);
-        }
-      };
-
-      recognizer.onerror = (event: any) => {
-        console.warn('Speech recognition notice:', event.error);
-        stopMicAudioAnalysis();
-        isListeningRef.current = false;
-        setJarvisState('idle');
-      };
-
-      recognizer.onend = () => {
-        stopMicAudioAnalysis();
-        isListeningRef.current = false;
-        if (jarvisState === 'listening') {
-          setJarvisState('idle');
-        }
-      };
-
-      recognitionRef.current = recognizer;
+    if (user) {
+      const unsubscribe = subscribeToUserData(
+        user.uid,
+        (updater) => {
+          setDataStore(updater);
+        },
+        initialStore
+      );
+      return () => unsubscribe();
+    } else {
+      loadData();
     }
+  }, [user, loadData]);
 
-    return () => {
-      stopMicAudioAnalysis();
-      stopSpeechAudio();
-    };
-  }, [addLog]);
+  // Check speech recognition capability
+  useEffect(() => {
+    const SpeechRec =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      setSpeechSupported(false);
+    }
+  }, []);
 
-  // Mic audio waveform analysis
+  // Mic audio analysis
   const startMicAudioAnalysis = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       micStreamRef.current = stream;
+      setMicPermissionDenied(false);
 
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       const ctx = new AudioCtx();
@@ -175,8 +170,8 @@ export default function App() {
         animationFrameRef.current = requestAnimationFrame(checkMicAmp);
       };
       checkMicAmp();
-    } catch (err) {
-      console.warn('Mic analysis notice:', err);
+    } catch {
+      setMicPermissionDenied(true);
     }
   };
 
@@ -214,14 +209,13 @@ export default function App() {
   }, []);
 
   // Voice Speech Output with real mouth amplitude sync
-  const speakResponse = async (textToSpeak: string) => {
+  const speakResponse = async (textToSpeak: string, nextState: JarvisState = 'listening') => {
     if (isMuted || !textToSpeak) {
-      setJarvisState('idle');
+      setJarvisState(nextState);
       return;
     }
 
     setJarvisState('speaking');
-    addLog(`TRANSMITTING SPEECH SYNTHESIS`, 'info');
 
     // 1. Attempt Gemini TTS from server
     try {
@@ -272,15 +266,19 @@ export default function App() {
 
         source.onended = () => {
           stopSpeechAudio();
-          setJarvisState('idle');
+          // State Machine: SPEAKING -> LISTENING
+          setJarvisState(nextState);
+          if (nextState === 'listening') {
+            startListeningForCommand();
+          }
         };
 
         source.start();
         analyzePlayback();
         return;
       }
-    } catch (e) {
-      console.warn('TTS playback notice:', e);
+    } catch {
+      // fallback to browser synthesis
     }
 
     // 2. Fallback: Browser Web Speech API Synthesis
@@ -307,44 +305,315 @@ export default function App() {
 
       utterance.onend = () => {
         stopSpeechAudio();
-        setJarvisState('idle');
+        // State Machine: SPEAKING -> LISTENING
+        setJarvisState(nextState);
+        if (nextState === 'listening') {
+          startListeningForCommand();
+        }
       };
 
       utterance.onerror = () => {
         stopSpeechAudio();
-        setJarvisState('idle');
+        setJarvisState(nextState);
+        if (nextState === 'listening') {
+          startListeningForCommand();
+        }
       };
 
       window.speechSynthesis.speak(utterance);
     } else {
-      setTimeout(() => setJarvisState('idle'), 2500);
+      setTimeout(() => {
+        setJarvisState(nextState);
+        if (nextState === 'listening') {
+          startListeningForCommand();
+        }
+      }, 2500);
     }
   };
+
+  // Start active voice command listening
+  const startListeningForCommand = () => {
+    stopSpeechAudio();
+    if (stateRef.current === 'sleeping' || stateRef.current === 'processing' || stateRef.current === 'speaking') return;
+
+    const SpeechRec =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) return;
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (_) {}
+    }
+
+    const recognizer = new SpeechRec();
+    recognizer.continuous = false;
+    recognizer.interimResults = true;
+    recognizer.lang = 'en-US';
+
+    recognizer.onstart = () => {
+      isListeningRef.current = true;
+      setIsListening(true);
+      setJarvisState('listening');
+      startMicAudioAnalysis();
+    };
+
+    recognizer.onresult = (event: any) => {
+      const current = event.resultIndex;
+      const transcript = event.results[current][0].transcript;
+      if (event.results[current].isFinal) {
+        stopMicAudioAnalysis();
+        isListeningRef.current = false;
+        setIsListening(false);
+
+        // Visual and haptic feedback signal when valid voice command received
+        if (navigator.vibrate) {
+          try {
+            navigator.vibrate(50);
+          } catch (_) {}
+        }
+        setShowEdgeRipple(true);
+        setTimeout(() => setShowEdgeRipple(false), 700);
+
+        handleExecuteCommand(transcript);
+      }
+    };
+
+    recognizer.onerror = () => {
+      stopMicAudioAnalysis();
+      isListeningRef.current = false;
+      setIsListening(false);
+      if (stateRef.current === 'listening' || stateRef.current === 'idle') {
+        setTimeout(() => {
+          if (stateRef.current === 'idle' || stateRef.current === 'listening') {
+            startListeningForCommand();
+          }
+        }, 1000);
+      }
+    };
+
+    recognizer.onend = () => {
+      stopMicAudioAnalysis();
+      isListeningRef.current = false;
+      setIsListening(false);
+      if (stateRef.current === 'listening' || stateRef.current === 'idle') {
+        setTimeout(() => {
+          if (stateRef.current === 'idle' || stateRef.current === 'listening') {
+            startListeningForCommand();
+          }
+        }, 500);
+      }
+    };
+
+    recognitionRef.current = recognizer;
+    try {
+      recognizer.start();
+    } catch {
+      // ignore
+    }
+  };
+
+  // Auto-listen when idle
+  useEffect(() => {
+    if (jarvisState === 'idle') {
+      const timer = setTimeout(() => {
+        if (stateRef.current === 'idle') {
+          startListeningForCommand();
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [jarvisState]);
+
+  // Stop active listening
+  const stopActiveListening = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (_) {}
+      recognitionRef.current = null;
+    }
+    isListeningRef.current = false;
+    stopMicAudioAnalysis();
+  };
+
+  // Put JARVIS into Sleep Mode
+  const goToSleep = useCallback((announce = false) => {
+    stopActiveListening();
+    stopSpeechAudio();
+    if (wakeTimeoutRef.current) {
+      clearTimeout(wakeTimeoutRef.current);
+      wakeTimeoutRef.current = null;
+    }
+    isWakingRef.current = false;
+    setWakingStage(0);
+    setAmplitude(0);
+    setLastTranscript('');
+    setJarvisSpeech('');
+
+    if (announce) {
+      playStarkPowerDownSound();
+    }
+    setJarvisState('sleeping');
+  }, [stopSpeechAudio]);
+
+  // Cinematic Wake-Up Sequence
+  const triggerWakeUp = useCallback(() => {
+    if (isWakingRef.current) return;
+    isWakingRef.current = true;
+
+    if (wakeRecognizerRef.current) {
+      try {
+        wakeRecognizerRef.current.abort();
+      } catch (_) {}
+      wakeRecognizerRef.current = null;
+    }
+
+    setJarvisState('waking');
+    setWakingStage(1);
+    playStarkStartupSound();
+
+    setTimeout(() => setWakingStage(2), 800);
+    setTimeout(() => setWakingStage(3), 1600);
+    setTimeout(() => setWakingStage(4), 2400);
+    setTimeout(() => setWakingStage(5), 3200);
+
+    const t5 = setTimeout(async () => {
+      isWakingRef.current = false;
+      setJarvisSpeech('At your service, Sir.');
+      await speakResponse('At your service, Sir.', 'listening');
+    }, 3700);
+
+    wakeTimeoutRef.current = t5;
+  }, [speakResponse]);
+
+  // Background Wake Word Detection ("Hey Jarvis")
+  useEffect(() => {
+    if (jarvisState !== 'sleeping' || !wakeWordEnabled || isWakingRef.current) {
+      if (wakeRecognizerRef.current) {
+        try {
+          wakeRecognizerRef.current.abort();
+        } catch (_) {}
+        wakeRecognizerRef.current = null;
+      }
+      return;
+    }
+
+    const SpeechRec =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      setSpeechSupported(false);
+      return;
+    }
+
+    let active = true;
+    const recognizer = new SpeechRec();
+    recognizer.continuous = true;
+    recognizer.interimResults = true;
+    recognizer.lang = 'en-US';
+
+    recognizer.onresult = (event: any) => {
+      if (!active || isWakingRef.current) return;
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const text = event.results[i][0].transcript.toLowerCase();
+        if (
+          text.includes('hey jarvis') ||
+          text.includes('jarvis') ||
+          text.includes('wake up') ||
+          text.includes('hello jarvis')
+        ) {
+          active = false;
+          try {
+            recognizer.abort();
+          } catch (_) {}
+          triggerWakeUp();
+          break;
+        }
+      }
+    };
+
+    recognizer.onerror = (e: any) => {
+      if (e.error === 'not-allowed') {
+        setMicPermissionDenied(true);
+      }
+    };
+
+    recognizer.onend = () => {
+      if (active && stateRef.current === 'sleeping' && !isWakingRef.current) {
+        try {
+          recognizer.start();
+        } catch {
+          setTimeout(() => {
+            if (active && stateRef.current === 'sleeping' && !isWakingRef.current) {
+              try {
+                recognizer.start();
+              } catch (_) {}
+            }
+          }, 1000);
+        }
+      }
+    };
+
+    wakeRecognizerRef.current = recognizer;
+    try {
+      recognizer.start();
+    } catch {
+      // ignore
+    }
+
+    return () => {
+      active = false;
+      try {
+        recognizer.abort();
+      } catch (_) {}
+      wakeRecognizerRef.current = null;
+    };
+  }, [jarvisState, wakeWordEnabled, triggerWakeUp]);
 
   // Central Command Execution
   const handleExecuteCommand = async (command: string): Promise<string | void> => {
     stopSpeechAudio();
     setLastTranscript(command);
+
+    const lowerCmd = command.toLowerCase().trim();
+    if (
+      lowerCmd.includes('go to sleep') ||
+      lowerCmd.includes('sleep mode') ||
+      lowerCmd === 'sleep' ||
+      lowerCmd.includes('power down') ||
+      lowerCmd.includes('shut down') ||
+      lowerCmd.includes('goodnight jarvis')
+    ) {
+      setJarvisSpeech('Entering sleep mode. Standby subroutines engaged.');
+      await speakResponse('Entering sleep mode. Standby subroutines engaged.', 'sleeping');
+      goToSleep(true);
+      return;
+    }
+
     setJarvisState('processing');
-    addLog(`PROCESSING DIRECTIVE: "${command}"`, 'info');
 
     try {
-      const result = await sendJarvisCommand(command);
-      if (result.store) {
+      const result = await sendJarvisCommand(command, user?.uid, dataStore.memories);
+
+      if (user && result.executedTool?.result) {
+        const { name: toolName, result: toolRes } = result.executedTool;
+        if (toolName === 'remember_information' && toolRes.memory) {
+          addFirestoreMemory(user.uid, toolRes.memory).catch(console.error);
+        } else if (toolName === 'schedule_calendar_event' && toolRes.event) {
+          addFirestoreCalendarEvent(user.uid, toolRes.event).catch(console.error);
+        } else if (toolName === 'add_task' && toolRes.task) {
+          addFirestoreTask(user.uid, toolRes.task).catch(console.error);
+        } else if (toolName === 'add_reminder' && toolRes.reminder) {
+          addFirestoreReminder(user.uid, toolRes.reminder).catch(console.error);
+        }
+      }
+
+      if (result.store && !user) {
         setDataStore(result.store);
       }
       setJarvisSpeech(result.text);
 
-      // Add to terminal history
-      setTerminalHistory((prev) => [
-        ...prev.slice(-6),
-        { command, output: result.text },
-      ]);
-
-      addLog(`DIRECTIVE EXECUTED: ${result.executedTool?.name || 'VOICE SYNTHESIS'}`, 'success');
-
-      // Speak aloud
-      await speakResponse(result.text);
+      await speakResponse(result.text, 'listening');
 
       setTimeout(() => {
         setLastTranscript('');
@@ -352,105 +621,82 @@ export default function App() {
       }, 12000);
 
       return result.text;
-    } catch (err: any) {
-      console.error('Command processing error:', err);
-      const fallbackText = "I encountered a minor computational latency, Sir. All subroutines remain online.";
+    } catch {
+      const fallbackText = 'I encountered a minor computational latency, Sir. All subroutines remain online.';
       setJarvisSpeech(fallbackText);
-      addLog(`COMPUTATIONAL LATENCY DETECTED`, 'warn');
       setJarvisState('error');
       setTimeout(() => setJarvisState('idle'), 3000);
       return fallbackText;
     }
   };
 
-  // Toggle Mic
-  const handleMicToggle = () => {
-    if (jarvisState === 'listening') {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (_) {}
-      }
-      isListeningRef.current = false;
-      stopMicAudioAnalysis();
-      setJarvisState('idle');
-      addLog('VOCAL RECOGNITION STANDBY', 'info');
-    } else {
-      stopSpeechAudio();
-      if (!recognitionRef.current) {
-        addLog('MICROPHONE RECOGNITION NOT SUPPORTED', 'warn');
-        return;
-      }
-      try {
-        recognitionRef.current.start();
-      } catch (e) {
-        try {
-          recognitionRef.current.abort();
-          setTimeout(() => recognitionRef.current.start(), 150);
-        } catch (_) {}
-      }
-    }
-  };
+  const isSleeping = jarvisState === 'sleeping';
+  const isWaking = jarvisState === 'waking';
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-[#010712] text-cyan-400 font-['Rajdhani',sans-serif] flex flex-col justify-between select-none">
-      {/* Background Holographic Atmosphere & Grid */}
-      <div className="absolute inset-0 hud-grid-bg opacity-30 pointer-events-none" />
-      <div className="absolute inset-0 hud-dots-bg opacity-20 pointer-events-none" />
-      <div className="absolute inset-0 hud-scanline opacity-30 pointer-events-none" />
+    <main
+      className={`relative w-screen h-screen overflow-hidden transition-colors duration-1000 ${
+        isSleeping ? 'bg-black' : 'bg-[#020610]'
+      } text-cyan-400 font-['Rajdhani',sans-serif] flex flex-col justify-between select-none`}
+    >
+      {showEdgeRipple && (
+        <div className="absolute inset-0 pointer-events-none z-50 border-2 border-cyan-400 animate-edge-ripple" />
+      )}
 
-      {/* TOP NAVIGATION BAR */}
-      <TopNav
-        state={jarvisState}
-        remindersCount={dataStore.reminders.length}
-        isMuted={isMuted}
-        onToggleMute={() => setIsMuted(!isMuted)}
-        onOpenDashboard={() => setIsDashboardOpen(true)}
-      />
+      {!isSleeping && (
+        <>
+          <div className="absolute inset-0 hud-grid-bg opacity-25 pointer-events-none transition-opacity duration-1000" />
+          <div className="absolute inset-0 hud-dots-bg opacity-15 pointer-events-none transition-opacity duration-1000" />
+          <div className="absolute inset-0 hud-scanline opacity-25 pointer-events-none transition-opacity duration-1000" />
 
-      {/* 3-COLUMN COCKPIT HUD (EXACT SCREENSHOT LAYOUT) */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 p-3 overflow-hidden relative z-10">
-        {/* LEFT COLUMN: Biometrics, Resources, Network (3 cols on desktop) */}
-        <div className="hidden lg:flex lg:col-span-3 flex-col justify-between gap-3 h-full overflow-hidden">
-          <BiometricsCard />
-          <ResourcesCard />
-          <NetworkCard />
-        </div>
+          <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-cyan-400/40 pointer-events-none" />
+          <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-cyan-400/40 pointer-events-none" />
+          <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-cyan-400/40 pointer-events-none" />
+          <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-cyan-400/40 pointer-events-none" />
+        </>
+      )}
 
-        {/* CENTER COLUMN: Central Radar Core, Arc Target, Soundwaves & Awaiting Command pill (6 cols) */}
-        <div className="col-span-12 lg:col-span-6 flex flex-col items-center justify-center h-full relative overflow-hidden">
-          <CenterDisplay
-            state={jarvisState}
-            amplitude={amplitude}
-            onMicClick={handleMicToggle}
-            lastTranscript={lastTranscript}
-            jarvisSpeech={jarvisSpeech}
-            onReactorClick={() => handleExecuteCommand('Arc reactor telemetry and suit status report')}
-          />
-        </div>
+      {/* CENTERPIECE: IRON MAN FACE & ARC REACTOR */}
+      <div
+        className="flex-1 flex flex-col items-center justify-center relative z-10 w-full overflow-hidden my-auto py-2 cursor-pointer select-none"
+        onClick={() => {
+          if (isSleeping) {
+            triggerWakeUp();
+          } else {
+            goToSleep(true);
+          }
+        }}
+      >
+        <IronManHologram
+          state={jarvisState}
+          amplitude={amplitude}
+          wakingStage={wakingStage}
+          className={isListening ? 'animate-vibrate' : ''}
+          onReactorClick={() => {
+            if (isSleeping) {
+              triggerWakeUp();
+            } else {
+              goToSleep(true);
+            }
+          }}
+        />
 
-        {/* RIGHT COLUMN: Armor Status, System Logs, Terminal (3 cols on desktop) */}
-        <div className="hidden lg:flex lg:col-span-3 flex-col justify-between gap-3 h-full overflow-hidden">
-          <ArmorStatusCard onActionClick={(msg) => addLog(msg, 'info')} />
-          <SystemLogsCard logs={systemLogs} />
-          <TerminalCard
-            onExecuteCommand={handleExecuteCommand}
-            terminalHistory={terminalHistory}
-          />
-        </div>
+        {!isSleeping && (lastTranscript || jarvisSpeech) && (
+          <div className="mt-4 max-w-lg w-full text-center px-4 py-2 bg-[#020b18]/85 border border-cyan-500/30 rounded-xs backdrop-blur-md shadow-[0_0_20px_rgba(0,240,255,0.2)]">
+            {lastTranscript && (
+              <div className="text-[11px] font-mono text-cyan-400/70 truncate">
+                &ldquo;{lastTranscript}&rdquo;
+              </div>
+            )}
+            {jarvisSpeech && (
+              <div className="text-xs sm:text-sm font-sans tracking-wide text-cyan-100 mt-0.5">
+                {jarvisSpeech}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* MOBILE HUD DRAWER CARDS TOGGLE (For smaller viewports) */}
-      <div className="lg:hidden flex items-center justify-around py-2 px-3 bg-[#010916] border-t border-cyan-500/20 text-xs font-mono">
-        <button
-          onClick={() => setIsDashboardOpen(true)}
-          className="text-cyan-300 font-bold px-3 py-1 bg-cyan-950/60 border border-cyan-500/40 rounded-xs"
-        >
-          OPEN DASHBOARD (CALENDAR & TASKS)
-        </button>
-      </div>
-
-      {/* SLIDE-OUT DASHBOARD DRAWER (Calendar, To-do List, Work/Projects, Reminders, Home) */}
       <SlideOutDashboard
         isOpen={isDashboardOpen}
         onClose={() => setIsDashboardOpen(false)}

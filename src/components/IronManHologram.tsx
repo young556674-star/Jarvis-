@@ -5,22 +5,39 @@ import { ArcReactor } from './ArcReactor';
 interface IronManHologramProps {
   state: JarvisState;
   amplitude: number; // 0 to 1
+  wakingStage?: number; // 0: sleeping, 1: helmet, 2: eyes, 3: outlines, 4: reactor flare, 5: fully awake
+  className?: string;
   onReactorClick?: () => void;
 }
 
 export const IronManHologram: React.FC<IronManHologramProps> = ({
   state,
   amplitude,
+  wakingStage = 0,
+  className,
   onReactorClick,
 }) => {
+  const isSleeping = state === 'sleeping';
+  const isWaking = state === 'waking';
   const isSpeaking = state === 'speaking';
   const isListening = state === 'listening';
   const isProcessing = state === 'processing';
   const isError = state === 'error';
+  const isFullyAwake = !isSleeping && (!isWaking || wakingStage >= 5);
+
+  // Waking sequence stages
+  const showHelmetFaint = isWaking ? wakingStage >= 1 : !isSleeping;
+  const showEyes = isWaking ? wakingStage >= 2 : !isSleeping;
+  const showOutlines = isWaking ? wakingStage >= 3 : !isSleeping;
+  const showReactorFlare = isWaking && wakingStage === 4;
 
   // Eye intensity
-  const eyeColor = isError ? '#ff2a55' : '#00f0ff';
-  const eyeGlow = isSpeaking
+  const eyeColor = isError ? '#ff2a55' : isWaking ? '#ffffff' : '#00f0ff';
+  const eyeGlow = !showEyes
+    ? 'none'
+    : isWaking
+    ? 'drop-shadow(0 0 25px rgba(255, 255, 255, 1)) drop-shadow(0 0 15px rgba(0, 240, 255, 1))'
+    : isSpeaking
     ? `drop-shadow(0 0 ${12 + amplitude * 18}px rgba(0, 240, 255, 0.95))`
     : isListening
     ? 'drop-shadow(0 0 16px rgba(0, 240, 255, 0.9))'
@@ -29,7 +46,6 @@ export const IronManHologram: React.FC<IronManHologramProps> = ({
     : 'drop-shadow(0 0 8px rgba(0, 240, 255, 0.65))';
 
   // Jaw displacement for speaking animation
-  // Moves down by up to 14px dynamically when speaking!
   const jawY = isSpeaking ? amplitude * 12 : 0;
 
   // Mouth equalizer bars inside the mouth cavity during speech
@@ -43,63 +59,70 @@ export const IronManHologram: React.FC<IronManHologramProps> = ({
   }, [isSpeaking, amplitude]);
 
   return (
-    <div className="relative flex flex-col items-center justify-center w-full max-w-2xl mx-auto px-4 py-2 select-none">
-      {/* Background Hologram Ambient Glow Cone */}
-      <div
-        className={`absolute top-1/4 w-80 h-80 rounded-full pointer-events-none transition-all duration-500 ${
-          isSpeaking
-            ? 'bg-cyan-500/15 blur-3xl scale-125'
-            : isListening
-            ? 'bg-cyan-400/20 blur-3xl scale-110'
-            : isProcessing
-            ? 'bg-blue-400/25 blur-3xl scale-120 animate-pulse'
-            : isError
-            ? 'bg-red-500/20 blur-3xl'
-            : 'bg-cyan-500/10 blur-3xl scale-95'
-        }`}
-      />
+    <div className={`relative flex flex-col items-center justify-center w-full max-w-2xl mx-auto px-4 py-2 select-none ${showReactorFlare ? 'animate-hud-shake' : ''} ${className || ''}`}>
+      {/* Background Hologram Ambient Glow Cone - Completely dark during sleep */}
+      {!isSleeping && (
+        <div
+          className={`absolute top-1/4 w-80 h-80 rounded-full pointer-events-none transition-all duration-700 ${
+            showReactorFlare
+              ? 'bg-cyan-200/50 blur-3xl scale-150 animate-pulse'
+              : isSpeaking
+              ? 'bg-cyan-500/15 blur-3xl scale-125'
+              : isListening
+              ? 'bg-cyan-400/20 blur-3xl scale-110'
+              : isProcessing
+              ? 'bg-blue-400/25 blur-3xl scale-120 animate-pulse'
+              : isError
+              ? 'bg-red-500/20 blur-3xl'
+              : isWaking
+              ? 'bg-cyan-500/10 blur-3xl scale-100'
+              : 'bg-cyan-500/10 blur-3xl scale-95'
+          }`}
+        />
+      )}
 
-      {/* Cybernetic HUD Target Reticle Rings Around Head */}
-      <div className="absolute top-6 w-72 h-72 border border-cyan-500/15 rounded-full pointer-events-none animate-spin-slow" />
-      <div className="absolute top-10 w-64 h-64 border border-dashed border-cyan-500/20 rounded-full pointer-events-none animate-spin-reverse-slow" />
+      {/* Cybernetic HUD Target Reticle Rings Around Head (Only in active mode) */}
+      {isFullyAwake && (
+        <>
+          <div className="absolute top-6 w-72 h-72 border border-cyan-500/15 rounded-full pointer-events-none animate-spin-slow transition-opacity duration-1000" />
+          <div className="absolute top-10 w-64 h-64 border border-dashed border-cyan-500/20 rounded-full pointer-events-none animate-spin-reverse-slow transition-opacity duration-1000" />
 
-      {/* Telemetry Lateral Equalizer Bars (Left & Right) */}
-      <div className="absolute left-2 sm:left-6 top-24 hidden md:flex flex-col gap-1.5 opacity-60">
-        <span className="text-[10px] text-cyan-400/80 font-mono tracking-wider">AUDIO IN</span>
-        {Array.from({ length: 8 }).map((_, i) => {
-          const w = isListening || isSpeaking ? Math.min(48, Math.max(8, amplitude * 50 + (i % 3) * 6)) : 10;
-          return (
-            <div
-              key={i}
-              className="h-1 bg-cyan-400 transition-all duration-75 rounded-xs"
-              style={{ width: `${w}px` }}
-            />
-          );
-        })}
-      </div>
+          {/* Telemetry Lateral Equalizer Bars (Left & Right) */}
+          <div className="absolute left-2 sm:left-6 top-24 hidden md:flex flex-col gap-1.5 opacity-60 transition-opacity duration-700">
+            {Array.from({ length: 8 }).map((_, i) => {
+              const w = isListening || isSpeaking ? Math.min(48, Math.max(8, amplitude * 50 + (i % 3) * 6)) : 10;
+              return (
+                <div
+                  key={i}
+                  className="h-1 bg-cyan-400 transition-all duration-75 rounded-xs"
+                  style={{ width: `${w}px` }}
+                />
+              );
+            })}
+          </div>
 
-      <div className="absolute right-2 sm:right-6 top-24 hidden md:flex flex-col items-end gap-1.5 opacity-60">
-        <span className="text-[10px] text-cyan-400/80 font-mono tracking-wider">NEURAL LINK</span>
-        {Array.from({ length: 8 }).map((_, i) => {
-          const w = isSpeaking || isProcessing ? Math.min(48, Math.max(8, amplitude * 45 + ((7 - i) % 3) * 7)) : 12;
-          return (
-            <div
-              key={i}
-              className="h-1 bg-cyan-400 transition-all duration-75 rounded-xs"
-              style={{ width: `${w}px` }}
-            />
-          );
-        })}
-      </div>
+          <div className="absolute right-2 sm:right-6 top-24 hidden md:flex flex-col items-end gap-1.5 opacity-60 transition-opacity duration-700">
+            {Array.from({ length: 8 }).map((_, i) => {
+              const w = isSpeaking || isProcessing ? Math.min(48, Math.max(8, amplitude * 45 + ((7 - i) % 3) * 7)) : 12;
+              return (
+                <div
+                  key={i}
+                  className="h-1 bg-cyan-400 transition-all duration-75 rounded-xs"
+                  style={{ width: `${w}px` }}
+                />
+              );
+            })}
+          </div>
+        </>
+      )}
 
-      {/* MAIN IRON MAN HOLOGRAPHIC BLUEPRINT SVG (Accurately modelled from reference image) */}
+      {/* MAIN IRON MAN HOLOGRAPHIC BLUEPRINT SVG (Original Cyan Aesthetic) */}
       <div className="relative w-full max-w-[380px] sm:max-w-[440px] aspect-[360/520]">
         <svg
           viewBox="0 0 360 520"
-          className="w-full h-full overflow-visible"
+          className={`w-full h-full overflow-visible ${showReactorFlare ? 'animate-chromatic' : ''}`}
         >
           <defs>
-            {/* Hologram Cyan Glow Filter */}
             <filter id="holoGlow" x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur stdDeviation="2.5" result="blur" />
               <feMerge>
@@ -108,16 +131,6 @@ export const IronManHologram: React.FC<IronManHologramProps> = ({
               </feMerge>
             </filter>
 
-            {/* Crimson Accent Glow Filter */}
-            <filter id="crimsonGlow" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-
-            {/* High intensity Eye Glow */}
             <filter id="eyeIntenseGlow" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="4" result="blur" />
               <feMerge>
@@ -133,6 +146,12 @@ export const IronManHologram: React.FC<IronManHologramProps> = ({
               <stop offset="100%" stopColor="#0284c7" />
             </linearGradient>
 
+            <linearGradient id="eyeGradWake" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="50%" stopColor="#e0faff" />
+              <stop offset="100%" stopColor="#38bdf8" />
+            </linearGradient>
+
             <linearGradient id="eyeGradRed" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#ffffff" />
               <stop offset="60%" stopColor="#ff2a55" />
@@ -141,45 +160,48 @@ export const IronManHologram: React.FC<IronManHologramProps> = ({
           </defs>
 
           {/* ------------------------------------------------------------- */}
-          {/* A. TORSO & CHEST ARMOR PLATING (Cyan wireframes with red accents) */}
+          {/* A. TORSO & CHEST ARMOR PLATING - Illuminated during Stage 3+ */}
           {/* ------------------------------------------------------------- */}
-          <g id="torso-armor" filter="url(#holoGlow)">
+          <g
+            id="torso-armor"
+            filter={isSleeping ? undefined : 'url(#holoGlow)'}
+            className="transition-opacity duration-700"
+            style={{
+              opacity: isSleeping ? 0 : showOutlines ? 1 : 0.05,
+            }}
+          >
             {/* Outer Shoulder Armor Arcs */}
             <path
               d="M 50 250 L 15 260 L 5 300 L 40 330 L 75 310"
-              fill="none"
+              fill="rgba(0, 210, 255, 0.04)"
               stroke="#00d2ff"
               strokeWidth="2"
-              strokeOpacity="0.85"
             />
             <path
               d="M 310 250 L 345 260 L 355 300 L 320 330 L 285 310"
-              fill="none"
+              fill="rgba(0, 210, 255, 0.04)"
               stroke="#00d2ff"
               strokeWidth="2"
-              strokeOpacity="0.85"
             />
 
             {/* Shoulder Ball Joints */}
-            <circle cx="32" cy="305" r="7" fill="none" stroke="#00f0ff" strokeWidth="2" />
-            <circle cx="32" cy="305" r="3" fill="#00f0ff" />
-            <circle cx="328" cy="305" r="7" fill="none" stroke="#00f0ff" strokeWidth="2" />
-            <circle cx="328" cy="305" r="3" fill="#00f0ff" />
+            <circle cx="32" cy="305" r="7" fill="none" stroke="#00d2ff" strokeWidth="1.8" />
+            <circle cx="32" cy="305" r="3" fill="#00d2ff" />
+            <circle cx="328" cy="305" r="7" fill="none" stroke="#00d2ff" strokeWidth="1.8" />
+            <circle cx="328" cy="305" r="3" fill="#00d2ff" />
 
             {/* Main Pectoral Armor Left */}
             <path
               d="M 80 280 L 140 280 L 160 320 L 130 400 L 70 380 L 50 330 Z"
-              fill="#020d1a"
-              fillOpacity="0.6"
-              stroke="#00f0ff"
+              fill="rgba(0, 210, 255, 0.04)"
+              stroke="#00d2ff"
               strokeWidth="2"
             />
             {/* Pectoral Armor Right */}
             <path
               d="M 280 280 L 220 280 L 200 320 L 230 400 L 290 380 L 310 330 Z"
-              fill="#020d1a"
-              fillOpacity="0.6"
-              stroke="#00f0ff"
+              fill="rgba(0, 210, 255, 0.04)"
+              stroke="#00d2ff"
               strokeWidth="2"
             />
 
@@ -187,7 +209,7 @@ export const IronManHologram: React.FC<IronManHologramProps> = ({
             <path
               d="M 140 280 L 180 305 L 220 280"
               fill="none"
-              stroke="#00f0ff"
+              stroke="#00d2ff"
               strokeWidth="2"
             />
             <path
@@ -198,60 +220,65 @@ export const IronManHologram: React.FC<IronManHologramProps> = ({
             />
 
             {/* Clavicle Ridge Lines */}
-            <line x1="80" y1="260" x2="135" y2="270" stroke="#00d2ff" strokeWidth="2" />
-            <line x1="280" y1="260" x2="225" y2="270" stroke="#00d2ff" strokeWidth="2" />
+            <line x1="80" y1="260" x2="135" y2="270" stroke="#00d2ff" strokeWidth="1.8" />
+            <line x1="280" y1="260" x2="225" y2="270" stroke="#00d2ff" strokeWidth="1.8" />
           </g>
 
           {/* ------------------------------------------------------------- */}
-          {/* B. CRIMSON / RED POWER CONDUITS & HYDRAULIC ACCENTS (as in image) */}
+          {/* B. BLUEPRINT CONDUITS & ACCENTS */}
           {/* ------------------------------------------------------------- */}
-          <g id="crimson-accents" filter="url(#crimsonGlow)">
+          <g
+            id="blueprint-accents"
+            filter={isSleeping ? undefined : 'url(#holoGlow)'}
+            className="transition-opacity duration-700"
+            style={{
+              opacity: isSleeping ? 0 : showOutlines ? 1 : 0.05,
+            }}
+          >
             {/* Neck Hydraulic Y-Link */}
             <path
               d="M 125 240 L 145 255 L 175 255 L 180 270 L 185 255 L 215 255 L 235 240"
               fill="none"
-              stroke="#ff2a55"
-              strokeWidth="2.5"
-            />
-            {/* Center Neck Vertical Channel */}
-            <line x1="180" y1="270" x2="180" y2="295" stroke="#ff2a55" strokeWidth="3" />
-            <rect x="176" y="278" width="8" height="10" fill="#ff2a55" rx="1" />
-
-            {/* Neck Support Nodes */}
-            <circle cx="130" cy="245" r="3.5" fill="#ff2a55" />
-            <circle cx="230" cy="245" r="3.5" fill="#ff2a55" />
-            <circle cx="150" cy="255" r="3" fill="#ff2a55" />
-            <circle cx="210" cy="255" r="3" fill="#ff2a55" />
-
-            {/* Lower Rib Conduits */}
-            <path
-              d="M 55 370 L 65 410 L 85 415"
-              fill="none"
-              stroke="#ff2a55"
+              stroke="#38bdf8"
               strokeWidth="2"
             />
-            <path
-              d="M 305 370 L 295 410 L 275 415"
-              fill="none"
-              stroke="#ff2a55"
-              strokeWidth="2"
-            />
-            <circle cx="65" cy="410" r="2.5" fill="#ff2a55" />
-            <circle cx="295" cy="410" r="2.5" fill="#ff2a55" />
+            <line x1="180" y1="270" x2="180" y2="295" stroke="#00d2ff" strokeWidth="2.5" />
+            <rect x="176" y="278" width="8" height="10" fill="rgba(0,240,255,0.2)" stroke="#00d2ff" strokeWidth="1" rx="1" />
 
-            {/* Chest Arc Reactor Outer Crimson Bracket Rings */}
+            <circle cx="130" cy="245" r="3" fill="#00d2ff" />
+            <circle cx="230" cy="245" r="3" fill="#00d2ff" />
+            <circle cx="150" cy="255" r="2.5" fill="#00d2ff" />
+            <circle cx="210" cy="255" r="2.5" fill="#00d2ff" />
+
+            <path d="M 55 370 L 65 410 L 85 415" fill="none" stroke="#00d2ff" strokeWidth="1.8" />
+            <path d="M 305 370 L 295 410 L 275 415" fill="none" stroke="#00d2ff" strokeWidth="1.8" />
+            <circle cx="65" cy="410" r="2" fill="#00d2ff" />
+            <circle cx="295" cy="410" r="2" fill="#00d2ff" />
+
             <path
               d="M 135 405 C 150 435 210 435 225 405"
               fill="none"
-              stroke="#ff2a55"
-              strokeWidth="2"
+              stroke="#00d2ff"
+              strokeWidth="1.8"
             />
           </g>
 
           {/* ------------------------------------------------------------- */}
           {/* C. IRON MAN HELMET - STATIC HEAD, BROW, AND EYES */}
+          {/* Faint in Stage 1, Eyes ignite in Stage 2 */}
           {/* ------------------------------------------------------------- */}
-          <g id="helmet-upper" filter="url(#holoGlow)">
+          <g
+            id="helmet-upper"
+            filter={isSleeping ? undefined : 'url(#holoGlow)'}
+            className="transition-all duration-700"
+            style={{
+              opacity: isSleeping
+                ? 0
+                : showHelmetFaint && !showEyes
+                ? 0.35
+                : 1,
+            }}
+          >
             {/* Outer Helmet Dome Contour */}
             <path
               d="M 125 50 
@@ -265,36 +292,35 @@ export const IronManHologram: React.FC<IronManHologramProps> = ({
                  L 105 140
                  L 110 85
                  Z"
-              fill="#030b18"
-              fillOpacity="0.75"
-              stroke="#00f0ff"
+              fill={isSleeping ? 'none' : 'rgba(0, 210, 255, 0.04)'}
+              stroke="#00d2ff"
               strokeWidth="2.5"
             />
 
             {/* Forehead Hexagonal Plate & Inset Seams */}
             <path
               d="M 155 45 L 165 75 L 195 75 L 205 45"
-              fill="none"
+              fill="rgba(0, 210, 255, 0.08)"
               stroke="#00d2ff"
               strokeWidth="2"
             />
             <line x1="165" y1="75" x2="165" y2="105" stroke="#00d2ff" strokeWidth="1.5" />
             <line x1="195" y1="75" x2="195" y2="105" stroke="#00d2ff" strokeWidth="1.5" />
-            <line x1="180" y1="45" x2="180" y2="75" stroke="#00d2ff" strokeWidth="1" strokeDasharray="3 3" />
+            <line x1="180" y1="45" x2="180" y2="75" stroke="#00d2ff" strokeWidth="1.2" strokeDasharray="3 3" />
 
             {/* Temporal / Brow Browline */}
             <path
               d="M 115 110 L 140 105 L 180 120 L 220 105 L 245 110"
               fill="none"
-              stroke="#00f0ff"
+              stroke="#00d2ff"
               strokeWidth="2.5"
             />
 
             {/* Ear Cylinders / Prow Pivots */}
-            <rect x="98" y="115" width="8" height="28" rx="2" fill="#011224" stroke="#00f0ff" strokeWidth="1.8" />
-            <line x1="102" y1="120" x2="102" y2="138" stroke="#00f0ff" strokeWidth="1" />
-            <rect x="254" y="115" width="8" height="28" rx="2" fill="#011224" stroke="#00f0ff" strokeWidth="1.8" />
-            <line x1="258" y1="120" x2="258" y2="138" stroke="#00f0ff" strokeWidth="1" />
+            <rect x="98" y="115" width="8" height="28" rx="2" fill="rgba(0,240,255,0.05)" stroke="#00d2ff" strokeWidth="1.8" />
+            <line x1="102" y1="120" x2="102" y2="138" stroke="#00d2ff" strokeWidth="1.2" />
+            <rect x="254" y="115" width="8" height="28" rx="2" fill="rgba(0,240,255,0.05)" stroke="#00d2ff" strokeWidth="1.8" />
+            <line x1="258" y1="120" x2="258" y2="138" stroke="#00d2ff" strokeWidth="1.2" />
 
             {/* Cheekbone Outer Angles */}
             <path
@@ -313,46 +339,70 @@ export const IronManHologram: React.FC<IronManHologramProps> = ({
             {/* Nose Bridge Contour */}
             <polygon
               points="175,125 185,125 187,145 180,150 173,145"
-              fill="#021528"
-              stroke="#00f0ff"
-              strokeWidth="1.6"
+              fill="rgba(0, 240, 255, 0.08)"
+              stroke="#00d2ff"
+              strokeWidth="1.8"
             />
 
             {/* ------------------------------------------------------- */}
-            {/* ICONIC GLOWING CYAN EYES */}
+            {/* ICONIC GLOWING CYAN EYES (Preserved as Current) */}
+            {/* Stage 2 of Wake-Up: Powerfully Ignites */}
             {/* ------------------------------------------------------- */}
-            {/* Left Eye */}
-            <polygon
-              points="126,128 162,130 166,138 132,137"
-              fill={isError ? 'url(#eyeGradRed)' : 'url(#eyeGrad)'}
-              stroke={eyeColor}
-              strokeWidth="1.8"
-              filter="url(#eyeIntenseGlow)"
-              style={{ filter: eyeGlow, transition: 'all 0.15s ease-out' }}
-            />
-            {/* Right Eye */}
-            <polygon
-              points="234,128 198,130 194,138 228,137"
-              fill={isError ? 'url(#eyeGradRed)' : 'url(#eyeGrad)'}
-              stroke={eyeColor}
-              strokeWidth="1.8"
-              filter="url(#eyeIntenseGlow)"
-              style={{ filter: eyeGlow, transition: 'all 0.15s ease-out' }}
-            />
+            <g
+              id="eyes-group"
+              className="transition-all duration-500"
+              style={{
+                opacity: showEyes ? 1 : 0,
+                transform: showEyes ? 'scale(1)' : 'scale(0.8)',
+                transformOrigin: '180px 135px',
+              }}
+            >
+              {/* Left Eye */}
+              <polygon
+                points="126,128 162,130 166,138 132,137"
+                fill={
+                  isError
+                    ? 'url(#eyeGradRed)'
+                    : isWaking
+                    ? 'url(#eyeGradWake)'
+                    : 'url(#eyeGrad)'
+                }
+                stroke={eyeColor}
+                strokeWidth="1.8"
+                filter="url(#eyeIntenseGlow)"
+                style={{ filter: eyeGlow, transition: 'all 0.2s ease-out' }}
+              />
+              {/* Right Eye */}
+              <polygon
+                points="234,128 198,130 194,138 228,137"
+                fill={
+                  isError
+                    ? 'url(#eyeGradRed)'
+                    : isWaking
+                    ? 'url(#eyeGradWake)'
+                    : 'url(#eyeGrad)'
+                }
+                stroke={eyeColor}
+                strokeWidth="1.8"
+                filter="url(#eyeIntenseGlow)"
+                style={{ filter: eyeGlow, transition: 'all 0.2s ease-out' }}
+              />
 
-            {/* Eye Pupil / High-frequency Laser Beam Core */}
-            <line x1="130" y1="133" x2="160" y2="134" stroke="#ffffff" strokeWidth="1.5" />
-            <line x1="230" y1="133" x2="200" y2="134" stroke="#ffffff" strokeWidth="1.5" />
+              {/* Eye Pupil / High-frequency Laser Beam Core */}
+              <line x1="130" y1="133" x2="160" y2="134" stroke="#ffffff" strokeWidth="1.5" />
+              <line x1="230" y1="133" x2="200" y2="134" stroke="#ffffff" strokeWidth="1.5" />
+            </g>
           </g>
 
           {/* ------------------------------------------------------------- */}
-          {/* D. ARTICULATED LOWER JAW / MOUTH VISOR (ANIMATES WITH SPEECH!) */}
-          {/* Translates downwards dynamically with audio amplitude */}
+          {/* D. ARTICULATED LOWER JAW / MOUTH VISOR (Preserved Teeth & Bars) */}
           {/* ------------------------------------------------------------- */}
           <g
             id="articulated-jaw"
-            filter="url(#holoGlow)"
+            filter={isSleeping ? undefined : 'url(#holoGlow)'}
+            className="transition-opacity duration-700"
             style={{
+              opacity: isSleeping ? 0 : showOutlines ? 1 : 0.05,
               transform: `translateY(${jawY}px)`,
               transition: isSpeaking ? 'transform 0.05s ease-out' : 'transform 0.25s ease-in-out',
             }}
@@ -361,23 +411,23 @@ export const IronManHologram: React.FC<IronManHologramProps> = ({
             <path
               d="M 148 168 L 165 174 L 195 174 L 212 168"
               fill="none"
-              stroke="#00f0ff"
+              stroke="#00d2ff"
               strokeWidth="2.2"
             />
 
-            {/* Mouth Aperture / Slit with Dynamic Voice Waveform Equalizer */}
+            {/* Mouth Aperture / Slit */}
             <rect
               x="152"
               y="173"
               width="56"
               height={isSpeaking ? Math.max(4, 3 + amplitude * 12) : 3}
               rx="1.5"
-              fill="#01101e"
-              stroke="#00f0ff"
-              strokeWidth="1.2"
+              fill="#010712"
+              stroke="#00d2ff"
+              strokeWidth="1.5"
             />
 
-            {/* Inside Mouth: Audio-reactive Voice Equalizer Bars during speech */}
+            {/* Voice Equalizer Bars during speech */}
             {isSpeaking && (
               <g transform="translate(154, 174)">
                 {mouthBars.map((barH, i) => (
@@ -405,67 +455,76 @@ export const IronManHologram: React.FC<IronManHologramProps> = ({
                  L 195 180
                  L 165 180
                  Z"
-              fill="#020e1d"
-              stroke="#00f0ff"
+              fill="rgba(0, 240, 255, 0.05)"
+              stroke="#00d2ff"
               strokeWidth="2.2"
             />
 
-            {/* Chin Accent Lines */}
-            <line x1="170" y1="192" x2="190" y2="192" stroke="#00d2ff" strokeWidth="1.8" />
-            <line x1="174" y1="198" x2="186" y2="198" stroke="#00d2ff" strokeWidth="1.5" />
+            <line x1="170" y1="192" x2="190" y2="192" stroke="#00d2ff" strokeWidth="1.5" />
+            <line x1="174" y1="198" x2="186" y2="198" stroke="#00d2ff" strokeWidth="1.2" />
             <line x1="180" y1="184" x2="180" y2="190" stroke="#00d2ff" strokeWidth="1.2" />
           </g>
 
           {/* ------------------------------------------------------------- */}
-          {/* E. HUD SCANLINE ANIMATION OVER HELMET */}
+          {/* E. HUD SCANLINE ANIMATION OVER HELMET (Only in active mode) */}
           {/* ------------------------------------------------------------- */}
-          <line
-            x1="100"
-            y1="50"
-            x2="260"
-            y2="50"
-            stroke="rgba(0, 240, 255, 0.45)"
-            strokeWidth="2"
-            filter="url(#holoGlow)"
-            className="animate-scan"
-          />
+          {isFullyAwake && (
+            <line
+              x1="100"
+              y1="50"
+              x2="260"
+              y2="50"
+              stroke="rgba(0, 240, 255, 0.45)"
+              strokeWidth="2"
+              filter="url(#holoGlow)"
+              className="animate-scan"
+            />
+          )}
         </svg>
 
         {/* ------------------------------------------------------------- */}
-        {/* F. ARC REACTOR AT CENTER CHEST (Exactly positioned over chest) */}
+        {/* F. ARC REACTOR AT CENTER CHEST */}
+        {/* Stage 4 of Wake-Up: Powerful cyan-white core pulse */}
         {/* ------------------------------------------------------------- */}
         <div
-          className="absolute left-1/2 -translate-x-1/2 bottom-[14px] cursor-pointer group"
+          className="absolute left-1/2 -translate-x-1/2 bottom-[14px] cursor-pointer group transition-all duration-700"
           onClick={onReactorClick}
           title="Stark Arc Reactor Core (Click for Diagnostics)"
         >
-          <ArcReactor state={state} amplitude={amplitude} size={150} />
+          <ArcReactor
+            state={state}
+            amplitude={amplitude}
+            size={150}
+            wakingStage={wakingStage}
+          />
         </div>
       </div>
 
       {/* Holographic HUD Status Badge */}
-      <div className="mt-2 flex items-center gap-2 px-3 py-1 bg-black/60 border border-cyan-500/30 rounded-sm backdrop-blur-md">
-        <span
-          className={`w-2 h-2 rounded-full ${
-            isSpeaking
-              ? 'bg-cyan-400 animate-ping'
-              : isListening
-              ? 'bg-cyan-300 animate-pulse'
-              : isProcessing
-              ? 'bg-blue-400 animate-bounce'
-              : isError
-              ? 'bg-red-500'
-              : 'bg-cyan-500/80'
-          }`}
-        />
-        <span className="text-xs font-mono tracking-widest text-cyan-300 font-semibold uppercase">
-          {state === 'idle' && 'SYSTEM STATUS: NOMINAL // J.A.R.V.I.S. READY'}
-          {state === 'listening' && 'LISTENING TO VOCAL TRANSMISSION...'}
-          {state === 'processing' && 'SYNTHESIZING PROTOCOL DIRECTIVE...'}
-          {state === 'speaking' && 'TRANSMITTING VOCAL SYNTHESIS...'}
-          {state === 'error' && 'NEURAL LATENCY ANOMALY DETECTED'}
-        </span>
-      </div>
+      {isFullyAwake && (
+        <div className="mt-2 flex items-center gap-2 px-3 py-1 bg-black/60 border border-cyan-500/30 rounded-sm backdrop-blur-md transition-opacity duration-500">
+          <span
+            className={`w-2 h-2 rounded-full ${
+              isSpeaking
+                ? 'bg-cyan-400 animate-ping'
+                : isListening
+                ? 'bg-cyan-300 animate-pulse'
+                : isProcessing
+                ? 'bg-blue-400 animate-bounce'
+                : isError
+                ? 'bg-red-500'
+                : 'bg-cyan-500/80'
+            }`}
+          />
+          <span className="text-xs font-mono tracking-widest text-cyan-300 font-semibold uppercase">
+            {state === 'idle' && 'SYSTEM STATUS: NOMINAL // J.A.R.V.I.S. READY'}
+            {state === 'listening' && 'LISTENING TO VOCAL TRANSMISSION...'}
+            {state === 'processing' && 'SYNTHESIZING PROTOCOL DIRECTIVE...'}
+            {state === 'speaking' && 'TRANSMITTING VOCAL SYNTHESIS...'}
+            {state === 'error' && 'NEURAL LATENCY ANOMALY DETECTED'}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

@@ -26,43 +26,140 @@ const ai = geminiApiKey
     })
   : null;
 
-// Initial Seed Data
+// Helper to compute dates relative to today
+const today = new Date();
+const getDateStr = (offsetDays: number) => {
+  const d = new Date(today);
+  d.setDate(today.getDate() + offsetDays);
+  return d.toISOString().split('T')[0];
+};
+
+// Initial Seed Data with rich Calendar matching the reference UI & Long-Term Memories
 const defaultData = {
   calendar: [
     {
       id: 'cal-1',
-      title: 'Flight Test Mark 85 Supersonic Thrusters',
-      date: new Date().toISOString().split('T')[0],
-      time: '14:00',
-      duration: '45 mins',
-      notes: 'Testing high-altitude thermal dissipators above Malibu.',
-      category: 'Armor Protocol',
+      title: 'Daily Standup',
+      date: getDateStr(0),
+      time: '08:00',
+      duration: '60 mins',
+      notes: 'Morning engineering synchronization.',
+      category: 'Corporate',
+      color: '#10b981', // green/emerald
       created_at: new Date().toISOString(),
     },
     {
       id: 'cal-2',
-      title: 'Stark Industries Board Review: Clean Energy Grid',
-      date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      time: '10:30',
-      duration: '60 mins',
-      notes: 'Reviewing city-wide arc reactor distribution efficiency.',
-      category: 'Corporate',
+      title: 'Review UI Design Landing Page',
+      date: getDateStr(0),
+      time: '09:00',
+      duration: '120 mins',
+      notes: 'Evaluate Stark cockpit HUD wireframes.',
+      category: 'Workshop',
+      color: '#eab308', // amber/gold
       created_at: new Date().toISOString(),
     },
     {
       id: 'cal-3',
-      title: 'Avengers Protocol Briefing with Col. Rhodes',
-      date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+      title: 'Break & Lunch',
+      date: getDateStr(0),
+      time: '12:00',
+      duration: '60 mins',
+      notes: 'Malibu coastal pavilion.',
+      category: 'Personal',
+      color: '#8b5cf6', // purple
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'cal-4',
+      title: 'Flight Test Mark 85 Supersonic Thrusters',
+      date: getDateStr(0),
+      time: '14:00',
+      duration: '60 mins',
+      notes: 'Testing high-altitude thermal dissipators above Malibu.',
+      category: 'Armor Protocol',
+      color: '#06b6d4', // cyan
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'cal-5',
+      title: 'Design Exploration for Mobile Responsive HUD',
+      date: getDateStr(0),
       time: '16:00',
-      duration: '30 mins',
+      duration: '90 mins',
+      notes: 'Mobile cockpit ergonomics.',
+      category: 'Workshop',
+      color: '#3b82f6', // blue
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'cal-6',
+      title: 'Daily Standup',
+      date: getDateStr(1),
+      time: '08:00',
+      duration: '60 mins',
+      notes: 'Briefing with workshop team.',
+      category: 'Corporate',
+      color: '#10b981',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'cal-7',
+      title: 'Collect Moodboard',
+      date: getDateStr(1),
+      time: '09:30',
+      duration: '90 mins',
+      notes: 'Nanotech interface inspirations.',
+      category: 'Workshop',
+      color: '#f43f5e', // rose
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'cal-8',
+      title: 'Stark Industries Board Review: Clean Energy Grid',
+      date: getDateStr(1),
+      time: '11:00',
+      duration: '60 mins',
+      notes: 'Reviewing city-wide arc reactor distribution efficiency.',
+      category: 'Corporate',
+      color: '#eab308',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'cal-9',
+      title: 'Break & Lunch',
+      date: getDateStr(1),
+      time: '12:00',
+      duration: '60 mins',
+      notes: 'Nobu delivery.',
+      category: 'Personal',
+      color: '#8b5cf6',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'cal-10',
+      title: 'Avengers Protocol Briefing with Col. Rhodes',
+      date: getDateStr(2),
+      time: '15:00',
+      duration: '60 mins',
       notes: 'Tactical satellite realignment status report.',
       category: 'Defense',
+      color: '#f43f5e',
       created_at: new Date().toISOString(),
     },
   ],
   tasks: [
     {
       id: 'task-1',
+      title: 'Review UI Design Landing Page',
+      completed: true,
+      priority: 'high',
+      category: 'Design',
+      dueDate: 'Today',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'task-2',
       title: 'Calibrate arc reactor palladium core harmonics',
       completed: false,
       priority: 'high',
@@ -71,30 +168,30 @@ const defaultData = {
       created_at: new Date().toISOString(),
     },
     {
-      id: 'task-2',
-      title: 'Synthesize Vibranium-titanium alloy batch #42',
-      completed: false,
-      priority: 'high',
-      category: 'Workshop',
-      dueDate: 'Tomorrow',
-      created_at: new Date().toISOString(),
-    },
-    {
       id: 'task-3',
-      title: 'Update JARVIS neural encryption firewall subroutines',
-      completed: true,
+      title: 'Meeting with Andrew regarding defense telemetry',
+      completed: false,
       priority: 'medium',
-      category: 'Security',
-      dueDate: 'Completed',
+      category: 'Defense',
+      dueDate: 'Today',
       created_at: new Date().toISOString(),
     },
     {
       id: 'task-4',
-      title: 'Order composite carbon fiber weave for repulsor gauntlets',
+      title: 'Daily Report to Lead UI Designer',
       completed: false,
       priority: 'low',
-      category: 'Logistics',
-      dueDate: 'This Week',
+      category: 'Design',
+      dueDate: 'Today',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'task-5',
+      title: 'Collect Moodboard and color palettes',
+      completed: false,
+      priority: 'medium',
+      category: 'Workshop',
+      dueDate: 'Tomorrow',
       created_at: new Date().toISOString(),
     },
   ],
@@ -126,15 +223,6 @@ const defaultData = {
       tag: 'Aerospace',
       updated_at: new Date().toISOString(),
     },
-    {
-      id: 'proj-4',
-      title: 'CELLULAR NANOBOT REPAIR MATRIX',
-      description: 'Autonomous micro-machinery for rapid biological trauma recovery.',
-      progress: 65,
-      status: 'active',
-      tag: 'Bio-Medical',
-      updated_at: new Date().toISOString(),
-    },
   ],
   reminders: [
     {
@@ -147,19 +235,52 @@ const defaultData = {
     },
     {
       id: 'rem-2',
-      text: "Dinner reservation with Pepper at 20:00 at Nobu Malibu",
+      text: 'Dinner reservation with Pepper at 20:00 at Nobu Malibu',
       time: '20:00 Today',
       priority: 'high',
       dismissed: false,
       created_at: new Date().toISOString(),
     },
+  ],
+  // Long-Term Persistent Memory Banks
+  memories: [
     {
-      id: 'rem-3',
-      text: 'Renew orbital satellite telemetry downlink lease',
-      time: 'Tomorrow 09:00',
-      priority: 'normal',
-      dismissed: false,
-      created_at: new Date().toISOString(),
+      id: 'mem-1',
+      content: 'Project ARCHITECT delivery deadline is November 10, 2026.',
+      category: 'deadline',
+      created_at: new Date(Date.now() - 86400000).toISOString(),
+    },
+    {
+      id: 'mem-2',
+      content: 'User prefers double iced espresso with oat milk in the morning.',
+      category: 'preference',
+      created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+    },
+    {
+      id: 'mem-3',
+      content: 'Mark 85 armor thrusters require ultrasonic calibration after every Mach 3 flight test.',
+      category: 'project',
+      created_at: new Date(Date.now() - 86400000 * 4).toISOString(),
+    },
+    {
+      id: 'mem-4',
+      content: 'Meeting preferences: 30 minutes duration maximum, prefer mornings before 11:00 AM.',
+      category: 'preference',
+      created_at: new Date(Date.now() - 86400000 * 6).toISOString(),
+    },
+  ],
+  conversationHistory: [
+    {
+      id: 'conv-1',
+      role: 'user',
+      content: 'Remember that my project deadline is November 10.',
+      timestamp: new Date(Date.now() - 86400000).toISOString(),
+    },
+    {
+      id: 'conv-2',
+      role: 'assistant',
+      content: 'Understood, Sir. I have committed to memory that your project deadline is November 10.',
+      timestamp: new Date(Date.now() - 86400000).toISOString(),
     },
   ],
   systemStats: {
@@ -183,9 +304,12 @@ function readStore(): typeof defaultData {
       return defaultData;
     }
     const raw = fs.readFileSync(DB_FILE, 'utf-8');
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    // Ensure memories & conversationHistory arrays exist
+    if (!parsed.memories) parsed.memories = defaultData.memories;
+    if (!parsed.conversationHistory) parsed.conversationHistory = defaultData.conversationHistory;
+    return parsed;
   } catch (err) {
-    console.error('Error reading store:', err);
     return defaultData;
   }
 }
@@ -198,12 +322,67 @@ function writeStore(data: typeof defaultData) {
     }
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
-    console.error('Error writing store:', err);
+    // silent
   }
 }
 
-// Function Declarations for Gemini Tool Calling
+// Function Declarations for Gemini Tool Calling (Calendar, Tasks, Projects, Reminders, Memories)
 const functionDeclarations: FunctionDeclaration[] = [
+  {
+    name: 'remember_information',
+    description: 'Save a persistent memory, fact, deadline, preference, or project detail to long-term memory.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        content: { type: Type.STRING, description: 'The exact fact, preference, or detail to remember permanently' },
+        category: { type: Type.STRING, description: 'Category e.g. project, deadline, preference, personal, general' },
+      },
+      required: ['content'],
+    },
+  },
+  {
+    name: 'recall_memories',
+    description: 'Search long-term memory banks for stored information, deadlines, preferences, or project details.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        query: { type: Type.STRING, description: 'Keyword or topic to search within memories' },
+      },
+    },
+  },
+  {
+    name: 'forget_memory',
+    description: 'Remove or delete a specific memory from long-term memory storage.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        memory_query: { type: Type.STRING, description: 'Keyword, content, or ID of the memory to forget' },
+      },
+      required: ['memory_query'],
+    },
+  },
+  {
+    name: 'update_memory',
+    description: 'Update or correct an existing long-term memory or project deadline/fact.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        memory_query: { type: Type.STRING, description: 'Keyword or old content of the memory to update' },
+        new_content: { type: Type.STRING, description: 'The updated fact or corrected detail' },
+      },
+      required: ['memory_query', 'new_content'],
+    },
+  },
+  {
+    name: 'query_conversation_history',
+    description: 'Search previous conversation records for what was discussed on past days.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        topic: { type: Type.STRING, description: 'Topic or query to find in past conversation transcripts' },
+      },
+    },
+  },
   {
     name: 'schedule_calendar_event',
     description: 'Schedule a new event, meeting, or appointment in Tony Stark’s calendar.',
@@ -211,11 +390,11 @@ const functionDeclarations: FunctionDeclaration[] = [
       type: Type.OBJECT,
       properties: {
         title: { type: Type.STRING, description: 'Title or subject of the event' },
-        date: { type: Type.STRING, description: 'Date in YYYY-MM-DD or human format like Tomorrow, Today' },
+        date: { type: Type.STRING, description: 'Date in YYYY-MM-DD or relative like Tomorrow, Today' },
         time: { type: Type.STRING, description: 'Time of day e.g. 15:00, 3 PM' },
         duration: { type: Type.STRING, description: 'Duration e.g. 45 mins, 1 hour' },
         notes: { type: Type.STRING, description: 'Additional details or location' },
-        category: { type: Type.STRING, description: 'Category e.g. Armor Protocol, Corporate, Personal, Workshop' },
+        category: { type: Type.STRING, description: 'Armor Protocol, Corporate, Defense, Workshop, Personal' },
       },
       required: ['title', 'time'],
     },
@@ -370,6 +549,88 @@ function executeToolCall(name: string, args: any, store: ReturnType<typeof readS
   let modified = false;
 
   switch (name) {
+    case 'remember_information': {
+      const memory = {
+        id: `mem-${Date.now()}`,
+        content: args.content,
+        category: args.category || 'general',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      if (!store.memories) store.memories = [];
+      store.memories.unshift(memory);
+      modified = true;
+      result = {
+        success: true,
+        message: `Committed to long-term memory: "${memory.content}".`,
+        memory,
+      };
+      break;
+    }
+
+    case 'recall_memories': {
+      const q = String(args.query || '').toLowerCase();
+      const memories = (store.memories || []).filter(
+        (m) => !q || m.content.toLowerCase().includes(q) || m.category.toLowerCase().includes(q)
+      );
+      result = {
+        success: true,
+        totalFound: memories.length,
+        memories,
+      };
+      break;
+    }
+
+    case 'forget_memory': {
+      const q = String(args.memory_query || '').toLowerCase();
+      const initialCount = (store.memories || []).length;
+      store.memories = (store.memories || []).filter(
+        (m) => !m.content.toLowerCase().includes(q) && m.id !== q
+      );
+      modified = store.memories.length !== initialCount;
+      result = {
+        success: modified,
+        message: modified ? `Memory purged from storage records.` : `No matching memory located.`,
+      };
+      break;
+    }
+
+    case 'update_memory': {
+      const q = String(args.memory_query || '').toLowerCase();
+      const newContent = args.new_content;
+      const matched = (store.memories || []).find(
+        (m) => m.content.toLowerCase().includes(q) || m.id === q
+      );
+      if (matched && newContent) {
+        matched.content = newContent;
+        (matched as any).updated_at = new Date().toISOString();
+        modified = true;
+        result = {
+          success: true,
+          message: `Memory updated successfully: "${newContent}".`,
+          memory: matched,
+        };
+      } else {
+        result = {
+          success: false,
+          message: `Could not locate memory matching query '${args.memory_query}'.`,
+        };
+      }
+      break;
+    }
+
+    case 'query_conversation_history': {
+      const q = String(args.topic || '').toLowerCase();
+      const history = (store.conversationHistory || []).filter(
+        (c) => !q || c.content.toLowerCase().includes(q)
+      );
+      result = {
+        success: true,
+        records: history.slice(-6),
+      };
+      break;
+    }
+
     case 'schedule_calendar_event': {
       let eventDate = args.date;
       if (!eventDate || eventDate.toLowerCase() === 'today') {
@@ -378,14 +639,23 @@ function executeToolCall(name: string, args: any, store: ReturnType<typeof readS
         eventDate = new Date(Date.now() + 86400000).toISOString().split('T')[0];
       }
 
+      const categoryColors: Record<string, string> = {
+        'Armor Protocol': '#06b6d4',
+        'Corporate': '#eab308',
+        'Defense': '#f43f5e',
+        'Workshop': '#3b82f6',
+        'Personal': '#8b5cf6',
+      };
+
       const newEvent = {
         id: `cal-${Date.now()}`,
         title: args.title,
         date: eventDate,
         time: args.time || '12:00',
         duration: args.duration || '60 mins',
-        notes: args.notes || 'Scheduled via J.A.R.V.I.S. voice protocol.',
-        category: args.category || 'Workshop Protocol',
+        notes: args.notes || 'Scheduled via J.A.R.V.I.S. voice directive.',
+        category: args.category || 'Workshop',
+        color: categoryColors[args.category] || '#06b6d4',
         created_at: new Date().toISOString(),
       };
       store.calendar.push(newEvent);
@@ -414,7 +684,6 @@ function executeToolCall(name: string, args: any, store: ReturnType<typeof readS
 
     case 'delete_calendar_event': {
       const q = String(args.event_query).toLowerCase();
-      const initialCount = store.calendar.length;
       const matched = store.calendar.find(
         (e) => e.title.toLowerCase().includes(q) || e.id.toLowerCase() === q
       );
@@ -628,6 +897,7 @@ function executeToolCall(name: string, args: any, store: ReturnType<typeof readS
         activeTasks: store.tasks.filter((t) => !t.completed).length,
         upcomingEvents: store.calendar.length,
         activeProjects: store.projects.filter((p) => p.status === 'active').length,
+        totalMemories: (store.memories || []).length,
         statusNote: 'All primary and auxiliary repulsor arrays are functioning at peak nominal tolerance.',
       };
       break;
@@ -664,6 +934,7 @@ app.post('/api/jarvis/calendar', (req, res) => {
     duration: req.body.duration || '60 mins',
     notes: req.body.notes || '',
     category: req.body.category || 'General',
+    color: req.body.color || '#06b6d4',
     created_at: new Date().toISOString(),
   };
   store.calendar.push(event);
@@ -772,7 +1043,35 @@ app.delete('/api/jarvis/reminders/:id', (req, res) => {
   res.json({ success: true });
 });
 
-// 3. Central JARVIS Command Processor (Voice / Typed Command)
+// Memory Endpoints
+app.get('/api/jarvis/memories', (req, res) => {
+  const store = readStore();
+  res.json({ memories: store.memories || [] });
+});
+
+app.post('/api/jarvis/memories', (req, res) => {
+  const store = readStore();
+  const memory = {
+    id: `mem-${Date.now()}`,
+    content: req.body.content,
+    category: req.body.category || 'general',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  if (!store.memories) store.memories = [];
+  store.memories.unshift(memory);
+  writeStore(store);
+  res.json({ success: true, memory });
+});
+
+app.delete('/api/jarvis/memories/:id', (req, res) => {
+  const store = readStore();
+  store.memories = (store.memories || []).filter((m) => m.id !== req.params.id);
+  writeStore(store);
+  res.json({ success: true });
+});
+
+// 3. Central JARVIS Command Processor (Voice / Typed Command) with Long-Term Memory
 app.post('/api/jarvis/command', async (req, res) => {
   const { command } = req.body;
   if (!command || typeof command !== 'string') {
@@ -780,75 +1079,108 @@ app.post('/api/jarvis/command', async (req, res) => {
   }
 
   const store = readStore();
-  const systemInstruction = `You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), Tony Stark's sophisticated, suave, loyal AI butler and tactical operating system.
-Speak in character: calm, witty, refined, respectful (address user as "Sir" or as Tony), and distinctly British in tone.
-Keep answers concise, direct, and conversational (1 to 2 sentences) because your words are spoken aloud through synthetic audio.
-CRITICAL INSTRUCTIONS:
-1. When asked to schedule an event, add a task, mark a task complete, list reminders, create a project, or query schedule/diagnostics, ALWAYS execute the appropriate tool function.
-2. Never claim an action succeeded unless the function executed successfully. If details are missing (e.g. time for an event), ask a polite follow-up.
-3. Current system time reference: ${new Date().toLocaleString()}. Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
 
-  // Fallback response if Gemini AI is not initialized
-  if (!ai) {
-    // Provide intelligent local regex handling for basic commands if no API key is available
-    const cmd = command.toLowerCase();
-    let spoken = "I am online and at your service, Sir. However, the Gemini API key has not been configured in your Secrets panel yet.";
-    let executedAction = null;
+  // Log to conversation history
+  if (!store.conversationHistory) store.conversationHistory = [];
+  store.conversationHistory.push({
+    id: `user-${Date.now()}`,
+    role: 'user',
+    content: command,
+    timestamp: new Date().toISOString(),
+  });
 
-    if (cmd.includes('task')) {
-      if (cmd.includes('add') || cmd.includes('create')) {
-        const title = command.replace(/add|create|to my tasks|task/gi, '').trim() || 'New Protocol Task';
-        const taskResult = executeToolCall('add_task', { title }, store);
-        spoken = `Right away, Sir. I have added "${title}" to your active tasks.`;
-        executedAction = taskResult;
-      } else if (cmd.includes('complete') || cmd.includes('mark') || cmd.includes('finish') || cmd.includes('done')) {
-        const completeResult = executeToolCall('complete_task', { task_query: cmd }, store);
-        spoken = completeResult.success ? `Done, Sir. I have marked that task complete.` : `I could not locate that task, Sir.`;
-        executedAction = completeResult;
-      }
-    } else if (cmd.includes('schedule') || cmd.includes('meeting') || cmd.includes('calendar')) {
-      const matchTime = cmd.match(/\b(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\b/i);
-      const time = matchTime ? matchTime[1] : '15:00';
-      const eventResult = executeToolCall('schedule_calendar_event', {
-        title: command.replace(/schedule a?|meeting|tomorrow|at \d+/gi, '').trim() || 'Tactical Meeting',
-        time,
-        date: cmd.includes('tomorrow') ? 'tomorrow' : 'today',
-      }, store);
-      spoken = `Understood, Sir. Scheduled for ${time}.`;
-      executedAction = eventResult;
-    } else if (cmd.includes('status') || cmd.includes('diagnostics') || cmd.includes('reactor')) {
-      spoken = `Arc reactor core is functioning at 10.84 Gigajoules per second, thermal parameters nominal at 48 degrees Celsius, Sir.`;
+  // AUTOMATIC MEMORY CAPTURE: Extract important personal facts, preferences, work, studies, goals, projects
+  const lowerCmd = command.toLowerCase();
+  const isFactCandidate =
+    lowerCmd.includes('my name is') ||
+    lowerCmd.includes('i like') ||
+    lowerCmd.includes('my deadline') ||
+    lowerCmd.includes('my project') ||
+    lowerCmd.includes('i work on') ||
+    lowerCmd.includes('i prefer') ||
+    lowerCmd.includes('my goal') ||
+    lowerCmd.includes('remember that') ||
+    lowerCmd.includes('i live') ||
+    lowerCmd.includes('my favorite') ||
+    lowerCmd.includes('i want to');
+
+  if (isFactCandidate && command.length > 8) {
+    const existingMemories = store.memories || [];
+    const isDuplicate = existingMemories.some((m) => m.content.toLowerCase() === command.toLowerCase());
+    if (!isDuplicate) {
+      let category = 'general';
+      if (lowerCmd.includes('deadline') || lowerCmd.includes('project')) category = 'projects';
+      else if (lowerCmd.includes('prefer') || lowerCmd.includes('like') || lowerCmd.includes('favorite')) category = 'preferences';
+      else if (lowerCmd.includes('goal') || lowerCmd.includes('want to')) category = 'goals';
+      else if (lowerCmd.includes('name') || lowerCmd.includes('live')) category = 'profile';
+
+      const newMem = {
+        id: `mem-${Date.now()}`,
+        content: command,
+        category,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      if (!store.memories) store.memories = [];
+      store.memories.unshift(newMem);
     }
-
-    return res.json({
-      text: spoken,
-      executedAction,
-      store: readStore(),
-    });
   }
+
+  // Construct active memory bank dump for system instruction
+  const activeMemories = (Array.isArray(req.body.clientMemories) && req.body.clientMemories.length > 0)
+    ? req.body.clientMemories
+    : (store.memories || []);
+
+  const memoryDump = activeMemories
+    .map((m: any) => `• [${(m.category || 'general').toUpperCase()}] ${m.content} (Logged: ${m.created_at || m.createdAt || 'recent'})`)
+    .join('\n');
+
+  const historyDump = (store.conversationHistory || [])
+    .slice(-40)
+    .map((c) => `[${c.timestamp.split('T')[1]?.slice(0, 5) || '00:00'}] ${c.role.toUpperCase()}: ${c.content}`)
+    .join('\n');
+
+  const systemInstruction = `You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), Tony Stark's sophisticated, loyal AI butler and operating system.
+Speak in character: calm, witty, refined, respectful (address user as "Sir"), and distinctly British in tone.
+Keep answers concise, direct, and conversational (1 to 2 sentences) because your words are spoken aloud through synthetic audio.
+
+=== LONG-TERM USER MEMORY BANKS ===
+${memoryDump || '(No explicit user memories stored yet.)'}
+
+=== COMPLETE CONVERSATION RECORDS (EVERY TALK) ===
+${historyDump || '(No conversation history yet.)'}
+
+CRITICAL INSTRUCTIONS ON MEMORY & RELEVANCY:
+1. ABSOLUTE MEMORY: You must remember every single talk, question, answer, and statement exchanged with the user across all records.
+2. STRICT RELEVANCY: Whenever the user speaks, your answer MUST be directly, specifically, and factually relevant to their exact question or directive. NEVER give vague, evasive, generic, or canned responses. If they ask a specific question, answer it directly using the conversation records or memory banks.
+3. When the user asks you to remember something, execute the 'remember_information' tool. When asked about past statements or facts, consult your Memory Banks and Conversation Records and answer accurately.
+4. NEVER invent memories or hallucinate information not present in your records. If an answer cannot be found, state politely: "I don't have a record of that in my memory banks, Sir."
+5. When asked to schedule events, manage tasks, or check diagnostics, execute the appropriate tool function.
+Current time reference: ${new Date().toLocaleString()}. Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`;
 
   // Helper to query Gemini with model fallback
   const invokeGemini = async (modelName: string) => {
+    if (!ai) throw new Error('NO_AI_CLIENT');
     return await ai.models.generateContent({
       model: modelName,
       contents: command,
       config: {
         systemInstruction,
-        tools: [{ functionDeclarations }],
-        temperature: 0.7,
+        tools: [{ googleSearch: {} }, { functionDeclarations }],
+        temperature: 0.6,
       },
     });
   };
 
   try {
+    if (!ai) throw new Error('AI_NOT_INITIALIZED');
+
     let response: any = null;
     let selectedModel = 'gemini-3.1-flash-lite';
 
     try {
-      // Primary: gemini-3.1-flash-lite (high throughput, dedicated quota pool)
       response = await invokeGemini('gemini-3.1-flash-lite');
     } catch {
-      // Secondary fallback model
       selectedModel = 'gemini-3.8-flash';
       response = await invokeGemini('gemini-3.8-flash');
     }
@@ -864,7 +1196,7 @@ CRITICAL INSTRUCTIONS:
       executedTool = { name: toolName, args: call.args, result: toolResult };
 
       try {
-        const followUp = await ai.models.generateContent({
+        const followUp = await ai!.models.generateContent({
           model: selectedModel,
           contents: [
             { role: 'user', parts: [{ text: command }] },
@@ -880,7 +1212,8 @@ CRITICAL INSTRUCTIONS:
           ],
           config: {
             systemInstruction,
-            temperature: 0.7,
+            tools: [{ googleSearch: {} }, { functionDeclarations }],
+            temperature: 0.6,
           },
         });
         finalSpeech = followUp.text || `Right away, Sir. ${toolResult.message || 'Operation executed.'}`;
@@ -891,18 +1224,70 @@ CRITICAL INSTRUCTIONS:
       finalSpeech = response?.text || 'At your service, Sir.';
     }
 
+    // Save assistant response to conversation history
+    store.conversationHistory.push({
+      id: `asst-${Date.now()}`,
+      role: 'assistant',
+      content: finalSpeech.trim(),
+      timestamp: new Date().toISOString(),
+    });
+    writeStore(store);
+
     res.json({
       text: finalSpeech.trim(),
       executedTool,
       store: readStore(),
     });
   } catch {
-    // Graceful local tactical parser without printing raw 429 quota JSON to console
+    // Intelligent local fallback parser for when Gemini quota or network is constrained
     const cmd = command.toLowerCase();
     let spoken = "Right away, Sir. Directive processed.";
     let executedAction = null;
 
-    if (cmd.includes('task')) {
+    // Memory Handling in fallback
+    if (cmd.includes('remember') || cmd.includes('memorize') || cmd.includes('save to memory')) {
+      const memoryContent = command
+        .replace(/remember that|remember to|remember|memorize that|memorize|save to memory/gi, '')
+        .trim();
+      const cat = memoryContent.toLowerCase().includes('deadline') ? 'deadline' : 'general';
+      const memResult = executeToolCall('remember_information', { content: memoryContent, category: cat }, store);
+      spoken = `I have committed that to my long-term memory banks, Sir: "${memoryContent}".`;
+      executedAction = memResult;
+    } else if (
+      cmd.includes('deadline') ||
+      cmd.includes('when is my') ||
+      cmd.includes('what did i tell you') ||
+      cmd.includes('what did i say') ||
+      cmd.includes('do you remember') ||
+      cmd.includes('favorite')
+    ) {
+      // Search memories
+      const memories = store.memories || [];
+      const queryWords = cmd.split(' ').filter((w) => w.length > 3);
+      const matched = memories.find((m) =>
+        queryWords.some((word) => m.content.toLowerCase().includes(word))
+      );
+
+      if (matched) {
+        spoken = `According to my memory records, Sir: ${matched.content}`;
+      } else {
+        // Search conversation records
+        const history = store.conversationHistory || [];
+        const matchedHistory = history.slice(-10).find((c) =>
+          c.role === 'user' && queryWords.some((word) => c.content.toLowerCase().includes(word))
+        );
+        if (matchedHistory) {
+          spoken = `You mentioned previously: "${matchedHistory.content}", Sir.`;
+        } else {
+          spoken = `I have scanned my memory banks, Sir, but I do not have a record of that.`;
+        }
+      }
+    } else if (cmd.includes('forget') || cmd.includes('delete memory') || cmd.includes('erase memory')) {
+      const q = command.replace(/forget that|forget|delete memory|erase memory/gi, '').trim();
+      const forgetResult = executeToolCall('forget_memory', { memory_query: q }, store);
+      spoken = forgetResult.success ? `Memory record purged from storage, Sir.` : `I could not locate that memory in my banks, Sir.`;
+      executedAction = forgetResult;
+    } else if (cmd.includes('task')) {
       if (cmd.includes('add') || cmd.includes('create') || cmd.includes('put')) {
         const title = command.replace(/add|create|put|to my tasks|task/gi, '').trim() || 'New Protocol Task';
         const taskResult = executeToolCall('add_task', { title }, store);
@@ -952,6 +1337,15 @@ CRITICAL INSTRUCTIONS:
       spoken = `Directive acknowledged, Sir. All Mark 85 subroutines remain at your command.`;
     }
 
+    // Save assistant response
+    store.conversationHistory.push({
+      id: `asst-${Date.now()}`,
+      role: 'assistant',
+      content: spoken,
+      timestamp: new Date().toISOString(),
+    });
+    writeStore(store);
+
     res.json({
       text: spoken,
       executedAction,
@@ -991,7 +1385,7 @@ app.post('/api/jarvis/tts', async (req, res) => {
         responseModalities: ['AUDIO'],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Fenrir' }, // Fenrir is deep, authoritative, and crisp
+            prebuiltVoiceConfig: { voiceName: 'Fenrir' },
           },
         },
       },

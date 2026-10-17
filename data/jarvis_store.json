@@ -178,5 +178,88 @@
     "suitEfficiency": "99.4%",
     "defenseGrid": "ONLINE",
     "neuroLinkLatency": "1.2 ms"
-  }
+  },
+  "memories": [
+    {
+      "id": "mem-1792243054426",
+      "content": "Project ARCHITECT delivery deadline is November 10, 2026.",
+      "category": "deadline",
+      "created_at": "2026-10-17T13:17:34.426Z",
+      "updated_at": "2026-10-17T13:17:34.426Z"
+    },
+    {
+      "id": "mem-1",
+      "content": "Project ARCHITECT delivery deadline is November 10, 2026.",
+      "category": "deadline",
+      "created_at": "2026-10-16T13:17:31.890Z"
+    },
+    {
+      "id": "mem-2",
+      "content": "User prefers double iced espresso with oat milk in the morning.",
+      "category": "preference",
+      "created_at": "2026-10-15T13:17:31.890Z"
+    },
+    {
+      "id": "mem-3",
+      "content": "Mark 85 armor thrusters require ultrasonic calibration after every Mach 3 flight test.",
+      "category": "project",
+      "created_at": "2026-10-13T13:17:31.890Z"
+    },
+    {
+      "id": "mem-4",
+      "content": "Meeting preferences: 30 minutes duration maximum, prefer mornings before 11:00 AM.",
+      "category": "preference",
+      "created_at": "2026-10-11T13:17:31.890Z"
+    }
+  ],
+  "conversationHistory": [
+    {
+      "id": "conv-1",
+      "role": "user",
+      "content": "Remember that my project deadline is November 10.",
+      "timestamp": "2026-10-16T13:17:31.890Z"
+    },
+    {
+      "id": "conv-2",
+      "role": "assistant",
+      "content": "Understood, Sir. I have committed to memory that your project deadline is November 10.",
+      "timestamp": "2026-10-16T13:17:31.890Z"
+    },
+    {
+      "id": "user-1792243053355",
+      "role": "user",
+      "content": "Remember that my project deadline is November 10",
+      "timestamp": "2026-10-17T13:17:33.355Z"
+    },
+    {
+      "id": "asst-1792243055728",
+      "role": "assistant",
+      "content": "Consider it done, Sir; I have updated your files to reflect that the Project ARCHITECT deadline is November 10, 2026.",
+      "timestamp": "2026-10-17T13:17:35.728Z"
+    },
+    {
+      "id": "user-1792243063478",
+      "role": "user",
+      "content": "When is my project deadline?",
+      "timestamp": "2026-10-17T13:17:43.478Z"
+    },
+    {
+      "id": "asst-1792243064465",
+      "role": "assistant",
+      "content": "The deadline for Project ARCHITECT is November 10, 2026, Sir.",
+      "timestamp": "2026-10-17T13:17:44.465Z"
+    },
+    {
+      "id": "user-1792243090013",
+      "role": "user",
+      "content": "What is my favorite car model?",
+      "timestamp": "2026-10-17T13:18:10.013Z"
+    },
+    {
+      "id": "asst-1792243092247",
+      "role": "assistant",
+      "content": "I'm afraid I don't have a record of your preferred car model in my memory banks, Sir. Perhaps you'd like to enlighten me?",
+      "timestamp": "2026-10-17T13:18:12.247Z"
+    }
+  ]
 }

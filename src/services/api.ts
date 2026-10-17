@@ -6,7 +6,11 @@ export const fetchJarvisData = async (): Promise<JarvisDataStore> => {
   return res.json();
 };
 
-export const sendJarvisCommand = async (command: string): Promise<{
+export const sendJarvisCommand = async (
+  command: string,
+  userId?: string,
+  clientMemories?: any[]
+): Promise<{
   text: string;
   executedTool?: any;
   store: JarvisDataStore;
@@ -14,7 +18,7 @@ export const sendJarvisCommand = async (command: string): Promise<{
   const res = await fetch('/api/jarvis/command', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ command }),
+    body: JSON.stringify({ command, userId, clientMemories }),
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
@@ -109,5 +113,19 @@ export const addReminder = async (reminder: Partial<ReminderItem>): Promise<{ su
 
 export const deleteReminder = async (id: string): Promise<{ success: boolean }> => {
   const res = await fetch(`/api/jarvis/reminders/${id}`, { method: 'DELETE' });
+  return res.json();
+};
+
+export const addMemory = async (content: string, category: string = 'general'): Promise<{ success: boolean; memory: any }> => {
+  const res = await fetch('/api/jarvis/memories', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, category }),
+  });
+  return res.json();
+};
+
+export const deleteMemory = async (id: string): Promise<{ success: boolean }> => {
+  const res = await fetch(`/api/jarvis/memories/${id}`, { method: 'DELETE' });
   return res.json();
 };
